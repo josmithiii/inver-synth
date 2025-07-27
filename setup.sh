@@ -41,11 +41,14 @@ conda activate $ENV_NAME
 
 # Install scientific computing packages via conda
 $CONDA_CMD install -y llvm llvmlite numba numpy scipy pandas matplotlib
-# Use pip for tensorflow since 2.1.0 is too old for conda
+# Use pip for tensorflow since we need modern version
 pip install tensorflow
 
 # Install remaining packages via pip
 pip install -r requirements.txt
+
+# Install specific kapre version that has trainable_kernel feature
+pip install kapre==0.1.7
 
 # Install development dependencies
 pip install black isort mypy flake8 autoflake pytest taskipy
@@ -64,7 +67,6 @@ echo "  python -m pytest                   # Run tests"
 echo "  python -m generators.fm_generator  # Generate dataset"
 echo "  python -m models.e2e_cnn           # Train E2E model" 
 echo "  python -m models.spectrogram_cnn   # Train spectrogram model"
-echo "  doit                               # All of the above"
 echo ""
 echo "📊 Environment info:"
 echo "  Environment: $ENV_NAME"
@@ -72,5 +74,4 @@ echo "  Python: $(python --version)"
 echo "  Location: $(conda info --envs | grep $ENV_NAME)"
 echo ""
 echo "🔍 To verify setup:"
-echo "  python -c 'import tensorflow; import numba; print(\"✅ All dependencies working\")'"
-
+echo "  python -c 'import tensorflow; import numba; from kapre.time_frequency import Spectrogram; print(\"✅ All dependencies working\")'"
