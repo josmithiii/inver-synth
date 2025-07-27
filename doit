@@ -1,58 +1,8 @@
 #!/bin/bash -e
-# InverSynth Setup Script
-# Run this on a new machine to set up the environment
 
-echo "Setting up InverSynth environment..."
-
-# Step 1: Install Poetry
-echo "Installing Poetry..."
-pip install poetry
-
-# Step 2: Fix deprecated pyproject.toml format if needed
-echo "Checking pyproject.toml format..."
-if grep -q "\[tool.poetry.dev-dependencies\]" pyproject.toml; then
-    echo "Updating deprecated pyproject.toml format..."
-    sed -i.bak 's/\[tool.poetry.dev-dependencies\]/[tool.poetry.group.dev.dependencies]/' pyproject.toml
-fi
-
-# Step 3: Install LLVM (required for numba/llvmlite)
-echo "Checking for LLVM..."
-if command -v mamba &> /dev/null; then
-    echo "Installing LLVM with mamba..."
-    mamba install -y llvm llvmlite numba
-elif command -v conda &> /dev/null; then
-    echo "Installing LLVM with conda..."
-    conda install -y llvm llvmlite numba
-elif command -v brew &> /dev/null; then
-    echo "Installing LLVM with Homebrew..."
-    brew install llvm
-    export LLVM_CONFIG=/opt/homebrew/bin/llvm-config
-else
-    echo "WARNING: No package manager found. You may need to install LLVM manually."
-    echo "On macOS: brew install llvm"
-    echo "With conda: conda install llvm llvmlite numba"
-fi
-
-# Step 4: Set up Poetry environment
-echo "Setting up Poetry environment..."
-poetry env use python
-rm -f poetry.lock  # Remove old lock file to avoid compatibility issues
-poetry lock
-poetry install
-
-# Step 5: Initialize project
-echo "Initializing project directories..."
-poetry run python -m tasks.start
-
-echo ""
-echo "✅ Setup complete!"
-echo ""
-echo "Common commands:"
-echo "  poetry run python -m tasks.start           # Initialize project"
-echo "  poetry run python -m generators.fm_generator  # Generate dataset"
-echo "  poetry run python -m models.e2e_cnn        # Train E2E model"
-echo "  poetry run python -m models.spectrogram_cnn # Train spectrogram model"
-echo "  poetry run python -m pytest               # Run tests"
-echo ""
-echo "Environment info:"
-poetry env info
+conda activate inver-synth
+python -m tasks.start
+python -m pytest
+python -m generators.fm_generator
+python -m models.e2e_cnn
+python -m models.spectrogram_cnn
