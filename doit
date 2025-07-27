@@ -1,8 +1,42 @@
 #!/bin/bash -e
+# InverSynth Development Script
+# Runs the main development tasks using the conda environment directly
 
-conda activate inver-synth
-python -m tasks.start
-python -m pytest
-python -m generators.fm_generator
-python -m models.e2e_cnn
-python -m models.spectrogram_cnn
+set -o pipefail
+
+# Use direct path to conda environment to avoid activation issues
+ENV_NAME="inver-synth"
+PYTHON_PATH="/Users/jos/miniforge3/envs/$ENV_NAME/bin/python"
+
+# Check if environment exists
+if [ ! -f "$PYTHON_PATH" ]; then
+    echo "❌ Environment '$ENV_NAME' not found. Run ./setup.sh first."
+    exit 1
+fi
+
+echo "🔧 Running InverSynth development tasks..."
+echo "📍 Using environment: $ENV_NAME"
+echo ""
+
+# Initialize project directories
+echo "📁 Initializing project directories..."
+$PYTHON_PATH -m tasks.start
+
+# Run tests
+echo "🧪 Running tests..."
+$PYTHON_PATH -m pytest
+
+# Generate dataset
+echo "📊 Generating dataset..."
+$PYTHON_PATH -m generators.fm_generator
+
+# Train E2E model
+echo "🧠 Training E2E model..."
+$PYTHON_PATH -m models.e2e_cnn
+
+# Train spectrogram model
+echo "🎵 Training spectrogram model..."
+$PYTHON_PATH -m models.spectrogram_cnn
+
+echo ""
+echo "✅ All tasks completed!"
