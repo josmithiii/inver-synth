@@ -1,0 +1,8 @@
+#!/bin/bash -e
+
+conda activate inver-synth
+python -m tasks.start
+python -m pytest
+python -m generators.fm_generator
+python -m models.e2e_cnn
+python -m models.spectrogram_cnn
