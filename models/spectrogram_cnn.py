@@ -1,7 +1,7 @@
 import numpy as np
 
 # import keras
-from kapre import STFT
+from kapre.time_frequency import Spectrogram
 from tensorflow import keras
 
 from generators.generator import *
@@ -49,12 +49,14 @@ def assemble_model(
     # abs(Spectrogram) in a shape of 2D data, i.e.,
     # `(None, n_channel, n_freq, n_time)` if `'channels_first'`,
     # `(None, n_freq, n_time, n_channel)` if `'channels_last'`,
-    x = STFT(
-        n_fft=n_dft,
-        hop_length=n_hop,
+    x = Spectrogram(
+        n_dft=n_dft,
+        n_hop=n_hop,
+        input_shape=src.shape,
+        trainable_kernel=True,
         name="static_stft",
-        input_data_format=data_format,
-        output_data_format=data_format,
+        image_data_format=data_format,
+        return_decibel_spectrogram=True,
     )(inputs)
 
     # Swaps order to match the paper?
