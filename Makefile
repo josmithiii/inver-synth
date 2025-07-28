@@ -101,28 +101,28 @@ model-c1: $(MODEL_C1)
 
 $(MODEL_C1): $(DATASET_FILE)
 	@echo "📊 Training C1 architecture (2 conv layers)..."
-	ARCHITECTURE=C1 $(PYTHON) -m models.spectrogram_cnn
+	$(PYTHON) -m models.spectrogram_cnn --model C1
 	@echo "✅ C1 model trained: $(MODEL_C1)"
 
 model-c3: $(MODEL_C3)
 
 $(MODEL_C3): $(DATASET_FILE)
 	@echo "📊 Training C3 architecture (4 conv layers)..."
-	ARCHITECTURE=C3 $(PYTHON) -m models.spectrogram_cnn
+	$(PYTHON) -m models.spectrogram_cnn --model C3
 	@echo "✅ C3 model trained: $(MODEL_C3)"
 
 model-c6: $(MODEL_C6)
 
 $(MODEL_C6): $(DATASET_FILE)
 	@echo "📊 Training C6 architecture (7 conv layers)..."
-	ARCHITECTURE=C6 $(PYTHON) -m models.spectrogram_cnn
+	$(PYTHON) -m models.spectrogram_cnn --model C6
 	@echo "✅ C6 model trained: $(MODEL_C6)"
 
 model-c6xl: $(MODEL_C6XL)
 
 $(MODEL_C6XL): $(DATASET_FILE)
 	@echo "📊 Training C6XL architecture (7 conv layers, XL)..."
-	ARCHITECTURE=C6XL $(PYTHON) -m models.spectrogram_cnn
+	$(PYTHON) -m models.spectrogram_cnn --model C6XL
 	@echo "✅ C6XL model trained: $(MODEL_C6XL)"
 
 # Evaluation targets

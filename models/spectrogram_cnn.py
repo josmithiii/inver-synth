@@ -36,10 +36,17 @@ def assemble_model(
     src: np.ndarray,
     n_outputs: int,
     arch_layers: list,
-    n_dft: int = 512,  # Orig:128
-    n_hop: int = 256,  #  Orig:64
+    n_dft: int = 128,  # Restored original paper value
+    n_hop: int = 64,  #  Orig:64
     data_format: str = "channels_first",
 ) -> keras.Model:
+    
+    # Ensure DFT size is not larger than input
+    input_length = src.shape[0] if data_format == "channels_last" else src.shape[1]
+    if n_dft > input_length:
+        n_dft = min(512, input_length)
+        n_hop = n_dft // 2
+        print(f"Adjusted STFT parameters: n_dft={n_dft}, n_hop={n_hop} for input length {input_length}")
 
     inputs = keras.Input(shape=src.shape, name="stft")
 
@@ -103,8 +110,15 @@ def get_model(
         print(
             f"Warning: {model_name} is not compatible with the spectrogram model. C1 Architecture will be used instead."
         )
+    
+    # Create input shape matching data generator output: (inputs, 1) for channels_last
+    if data_format == "channels_last":
+        input_shape = (inputs, 1)
+    else:
+        input_shape = (1, inputs)
+    
     return assemble_model(
-        np.zeros([1, inputs]),
+        np.zeros(input_shape),
         n_outputs=outputs,
         arch_layers=arch_layers,
         data_format=data_format,

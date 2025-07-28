@@ -49,7 +49,7 @@ echo "🎼 Training Spectrogram CNN models..."
 # Architecture C1 (2 layers)
 if [ ! -f "output/InverSynth_C1.h5" ]; then
     echo "   📊 Training C1 architecture (2 conv layers)..."
-    ARCHITECTURE=C1 $PYTHON_PATH -m models.spectrogram_cnn
+    $PYTHON_PATH -m models.spectrogram_cnn --model C1
 else
     echo "   ✅ C1 model already trained"
 fi
@@ -57,7 +57,7 @@ fi
 # Architecture C3 (4 layers) 
 if [ ! -f "output/InverSynth_C3.h5" ]; then
     echo "   📊 Training C3 architecture (4 conv layers)..."
-    ARCHITECTURE=C3 $PYTHON_PATH -m models.spectrogram_cnn
+    $PYTHON_PATH -m models.spectrogram_cnn --model C3
 else
     echo "   ✅ C3 model already trained"
 fi
@@ -65,7 +65,7 @@ fi
 # Architecture C6 (7 layers)
 if [ ! -f "output/InverSynth_C6.h5" ]; then
     echo "   📊 Training C6 architecture (7 conv layers)..."
-    ARCHITECTURE=C6 $PYTHON_PATH -m models.spectrogram_cnn
+    $PYTHON_PATH -m models.spectrogram_cnn --model C6
 else
     echo "   ✅ C6 model already trained"
 fi
@@ -73,7 +73,7 @@ fi
 # Architecture C6XL (7 layers, extra large)
 if [ ! -f "output/InverSynth_C6XL.h5" ]; then
     echo "   📊 Training C6XL architecture (7 conv layers, XL)..."
-    ARCHITECTURE=C6XL $PYTHON_PATH -m models.spectrogram_cnn
+    $PYTHON_PATH -m models.spectrogram_cnn --model C6XL
 else
     echo "   ✅ C6XL model already trained"
 fi
