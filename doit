@@ -1,6 +1,6 @@
 #!/bin/bash -e
-# InverSynth Development Script
-# Runs the main development tasks using the conda environment directly
+# InverSynth Complete Development Pipeline
+# Handles training and evaluation of all model architectures
 
 set -o pipefail
 
@@ -10,11 +10,12 @@ PYTHON_PATH="/Users/jos/miniforge3/envs/$ENV_NAME/bin/python"
 
 # Check if environment exists
 if [ ! -f "$PYTHON_PATH" ]; then
-    echo "❌ Environment '$ENV_NAME' not found. Run ./setup.sh first."
+    echo "❌ Environment '$ENV_NAME' not found. Run the setup commands first."
     exit 1
 fi
 
-echo "🔧 Running InverSynth development tasks..."
+echo "🔧 InverSynth Complete Pipeline"
+echo "="*50
 echo "📍 Using environment: $ENV_NAME"
 echo ""
 
@@ -22,21 +23,125 @@ echo ""
 echo "📁 Initializing project directories..."
 $PYTHON_PATH -m tasks.start
 
-# Run tests
-echo "🧪 Running tests..."
-$PYTHON_PATH -m pytest
-
-# Generate dataset
-echo "📊 Generating dataset..."
-$PYTHON_PATH -m generators.fm_generator
-
-# Train E2E model
-echo "🧠 Training E2E model..."
-$PYTHON_PATH -m models.e2e_cnn
-
-# Train spectrogram model
-echo "🎵 Training spectrogram model..."
-$PYTHON_PATH -m models.spectrogram_cnn
+# Generate dataset if needed
+if [ ! -f "test_datasets/InverSynth_data.hdf5" ]; then
+    echo "📊 Generating training dataset..."
+    $PYTHON_PATH -m generators.fm_generator --num_examples 150 --length 1.0 --sample_rate 16384
+else
+    echo "✅ Dataset already exists"
+fi
 
 echo ""
-echo "✅ All tasks completed!"
+echo "🧠 Training Neural Network Models..."
+echo "="*50
+
+# Train E2E CNN (End-to-End) - if not already done
+if [ ! -f "output/InverSynth_e2e.h5" ]; then
+    echo "🔥 Training E2E CNN model..."
+    $PYTHON_PATH -m models.e2e_cnn
+else
+    echo "✅ E2E CNN model already trained"
+fi
+
+# Train Spectrogram CNN models (C1-C6XL architectures from paper)
+echo "🎼 Training Spectrogram CNN models..."
+
+# Architecture C1 (2 layers)
+if [ ! -f "output/InverSynth_C1.h5" ]; then
+    echo "   📊 Training C1 architecture (2 conv layers)..."
+    ARCHITECTURE=C1 $PYTHON_PATH -m models.spectrogram_cnn
+else
+    echo "   ✅ C1 model already trained"
+fi
+
+# Architecture C3 (4 layers) 
+if [ ! -f "output/InverSynth_C3.h5" ]; then
+    echo "   📊 Training C3 architecture (4 conv layers)..."
+    ARCHITECTURE=C3 $PYTHON_PATH -m models.spectrogram_cnn
+else
+    echo "   ✅ C3 model already trained"
+fi
+
+# Architecture C6 (7 layers)
+if [ ! -f "output/InverSynth_C6.h5" ]; then
+    echo "   📊 Training C6 architecture (7 conv layers)..."
+    ARCHITECTURE=C6 $PYTHON_PATH -m models.spectrogram_cnn
+else
+    echo "   ✅ C6 model already trained"
+fi
+
+# Architecture C6XL (7 layers, extra large)
+if [ ! -f "output/InverSynth_C6XL.h5" ]; then
+    echo "   📊 Training C6XL architecture (7 conv layers, XL)..."
+    ARCHITECTURE=C6XL $PYTHON_PATH -m models.spectrogram_cnn
+else
+    echo "   ✅ C6XL model already trained"
+fi
+
+echo ""
+echo "🧪 Running Tests..."
+echo "="*30
+$PYTHON_PATH -m pytest tests/ -v
+
+echo ""
+echo "📊 Evaluating Model Performance..."
+echo "="*40
+
+# Generate audio comparisons and analysis
+echo "🎵 Creating audio reconstructions and spectrograms..."
+$PYTHON_PATH listen_results.py
+
+# Run parameter comparison analysis
+echo "🔍 Running parameter comparison analysis..."
+$PYTHON_PATH -c "
+from models.comparison import run_comparison
+from generators.fm_generator import InverSynthGenerator
+from tensorflow import keras
+from models.app import top_k_mean_accuracy
+import os
+
+generator = InverSynthGenerator()
+models_to_analyze = ['output/InverSynth_e2e.h5', 'output/InverSynth_C1.h5', 'output/InverSynth_C6.h5']
+for model_file in models_to_analyze:
+    if os.path.exists(model_file):
+        print(f'📈 Analyzing {model_file}...')
+        model = keras.models.load_model(model_file, custom_objects={'top_k_mean_accuracy': top_k_mean_accuracy})
+        model_name = os.path.basename(model_file).replace('.h5', '')
+        run_comparison(model, generator, 'InverSynth', num_samples=3, 
+                      output_dir=f'detailed_comparison_{model_name}')
+"
+
+echo ""
+echo "✅ InverSynth Pipeline Complete!"
+echo "="*40
+echo ""
+echo "📁 Results Summary:"
+echo "   Models:            output/*.h5"
+echo "   Training curves:   training_curves.png" 
+echo "   Audio comparisons: comparison_results/InverSynth/"
+echo "   Spectrograms:      comparison_results/InverSynth/*_spectrograms.png"
+echo "   Model comparisons: detailed_comparison_*/"
+echo ""
+echo "🎧 To listen to results:"
+echo "   • Original audio:      comparison_results/InverSynth/*_copy.wav"
+echo "   • Reconstructed:       comparison_results/InverSynth/*_reconstruct.wav" 
+echo "   • Reference (true):    comparison_results/InverSynth/*_duplicate.wav"
+echo ""
+echo "📊 Analysis tools available:"
+echo "   $PYTHON_PATH listen_results.py              # Audio analysis & spectrograms"
+echo "   $PYTHON_PATH -m models.comparison           # Detailed parameter analysis"
+echo "   $PYTHON_PATH reconstruction/fm_reconstruction.py  # Custom reconstructions"
+echo ""
+echo "🧪 Model architectures trained:"
+for model in output/*.h5; do
+    if [ -f "$model" ]; then
+        echo "   ✅ $(basename "$model")"
+    fi
+done
+
+echo ""
+echo "🎯 Next steps:"
+echo "   1. Listen to audio comparisons to hear model performance"
+echo "   2. Check spectrograms for frequency domain analysis" 
+echo "   3. Compare different architectures (E2E vs C1/C3/C6/C6XL)"
+echo "   4. Run custom reconstructions on your own audio files"
