@@ -1,8 +1,9 @@
 import numpy as np
-from tensorflow import keras
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from models.common.architectures import cE2E_1d_layers, cE2E_2d_layers
-from models.common.utils import utils
 
 """
 End-to-End learning. A CNN predicts the synthesizer
@@ -23,73 +24,108 @@ synthesizer parameter configuration.
 # and strides (S1,S2).
 
 
-def assemble_model(
-    src: np.ndarray,
-    n_outputs: int,
-    c1d_layers: list,
-    c2d_layers: list,
-    n_dft: int = 128,
-    n_hop: int = 64,
-    data_format: str = "channels_first",
-) -> keras.Model:
-
-    # define shape not including batch size
-    inputs = keras.Input(shape=src.shape, name="raw_audio")
-
-    # @paper:
-    # The first four layers degenerates to
-    # 1D strided convolutions by setting
-    # both K1 and S1 to 1. C(F,K1,K2,S1,S2)
-    x = None
-    for i, arch_layer in enumerate(c1d_layers):
-        x = inputs if i == 0 else x
-        x = keras.layers.Conv1D(
-            arch_layer.filters,
-            arch_layer.window_size,
-            strides=arch_layer.strides,
-            data_format=data_format,
-        )(x)
-
-    # @paper: learned representation
-    # Trying a Reshape instead of Lambda, as it's portable to tfjs
-    # x = keras.layers.Lambda(lambda x: keras.backend.expand_dims(x, axis=3))(x)
-    x = keras.layers.Reshape((61, 257, 1), input_shape=(61, 257))(x)
-
-    # @paper:
-    # followed by additional six 2D strided convolutional layers that
-    # are identical to those of Conv6 model
-    for arch_layer in c2d_layers:
-        x = keras.layers.Conv2D(
-            arch_layer.filters,
-            arch_layer.window_size,
-            strides=arch_layer.strides,
-            activation=arch_layer.activation,
-            data_format=data_format,
-        )(x)
-
-    # @paper: sigmoid activations with binary cross entropy loss
-
-    # Flatten down to a single dimension
-    x = keras.layers.Flatten()(x)
-
-    # @paper: FC-512
-    x = keras.layers.Dense(512)(x)
-
-    # @paper: FC-368(sigmoid)
-    outputs = keras.layers.Dense(n_outputs, activation="sigmoid", name="predictions")(x)
-
-    return keras.Model(inputs=inputs, outputs=outputs)
+class E2EModel(nn.Module):
+    def __init__(
+        self,
+        n_outputs: int,
+        c1d_layers: list,
+        c2d_layers: list,
+        input_size: int,
+        n_dft: int = 128,
+        n_hop: int = 64,
+    ):
+        super(E2EModel, self).__init__()
+        
+        # 1D Convolutional layers
+        self.conv1d_layers = nn.ModuleList()
+        in_channels = 1  # raw audio has 1 channel
+        
+        for arch_layer in c1d_layers:
+            self.conv1d_layers.append(
+                nn.Conv1d(
+                    in_channels=in_channels,
+                    out_channels=arch_layer.filters,
+                    kernel_size=arch_layer.window_size,
+                    stride=arch_layer.strides,
+                    padding=0,
+                )
+            )
+            in_channels = arch_layer.filters
+        
+        # 2D Convolutional layers
+        self.conv2d_layers = nn.ModuleList()
+        in_channels = 1  # after reshape, we have 1 channel
+        
+        for arch_layer in c2d_layers:
+            self.conv2d_layers.append(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=arch_layer.filters,
+                    kernel_size=arch_layer.window_size,
+                    stride=arch_layer.strides,
+                    padding=0,
+                )
+            )
+            in_channels = arch_layer.filters
+        
+        # Calculate the size after convolutions for the dense layer
+        # This will need to be computed based on input size and conv operations
+        self.fc_input_size = self._calculate_fc_input_size(input_size)
+        
+        # Fully connected layers
+        self.fc1 = nn.Linear(self.fc_input_size, 512)
+        self.fc2 = nn.Linear(512, n_outputs)
+        
+    def _calculate_fc_input_size(self, input_size: int) -> int:
+        # Create a dummy input to calculate the size after convolutions
+        x = torch.zeros(1, 1, input_size)  # batch_size=1, channels=1, length=input_size
+        
+        # Apply 1D convolutions
+        for conv1d in self.conv1d_layers:
+            x = F.relu(conv1d(x))
+        
+        # Reshape for 2D convolutions (add spatial dimension)
+        # Based on the original reshape (61, 257, 1)
+        batch_size, channels, length = x.shape
+        x = x.view(batch_size, 1, 61, 257)  # reshape to 2D
+        
+        # Apply 2D convolutions
+        for conv2d in self.conv2d_layers:
+            x = F.relu(conv2d(x))
+        
+        return x.view(1, -1).size(1)
+    
+    def forward(self, x):
+        # Apply 1D convolutions with ReLU activation
+        for conv1d in self.conv1d_layers:
+            x = F.relu(conv1d(x))
+        
+        # Reshape for 2D convolutions
+        batch_size, channels, length = x.shape
+        x = x.view(batch_size, 1, 61, 257)  # reshape to 2D
+        
+        # Apply 2D convolutions with ReLU activation
+        for conv2d in self.conv2d_layers:
+            x = F.relu(conv2d(x))
+        
+        # Flatten
+        x = x.view(x.size(0), -1)
+        
+        # Fully connected layers
+        x = F.relu(self.fc1(x))
+        x = torch.sigmoid(self.fc2(x))  # sigmoid activation for final output
+        
+        return x
 
 
 def get_model(
     model_name: str, inputs: int, outputs: int, data_format: str = "channels_last"
-) -> keras.Model:
-    return assemble_model(
-        np.zeros([inputs, 1]),
-        outputs,
-        cE2E_1d_layers,
-        cE2E_2d_layers,
-        data_format=data_format,
+) -> E2EModel:
+    return E2EModel(
+        n_outputs=outputs,
+        c1d_layers=cE2E_1d_layers,
+        c2d_layers=cE2E_2d_layers,
+        input_size=inputs,
     )
 
 

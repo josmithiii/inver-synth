@@ -1,11 +1,12 @@
 import h5py
 import numpy as np
 from scipy.io import wavfile
-from tensorflow import keras
+import torch
+from torch.utils.data import Dataset
 
 
-class SoundDataGenerator(keras.utils.Sequence):
-    "Generates data for Keras"
+class SoundDataGenerator(Dataset):
+    "Generates data for PyTorch"
 
     def __init__(
         self,
@@ -64,22 +65,34 @@ class SoundDataGenerator(keras.utils.Sequence):
         return self.label_size
 
     def __len__(self):
-        "Denotes the number of batches per epoch"
-        return int(np.floor(len(self.list_IDs) / self.batch_size))
+        "Denotes the number of samples in the dataset"
+        return len(self.list_IDs)
 
     def __getitem__(self, index):
-        "Generate one batch of data"
-        # Generate indexes of the batch
-        indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
-
-        # Find list of IDs
-        # list_IDs_temp = [self.list_IDs[k] for k in indexes]
-
-        # Generate data
-        X, y = self.__data_generation(indexes)
-
-        # print("Returning data! Got X: {}, y: {}".format(X.shape,y.shape))
-        return X, y
+        "Generate one sample of data"
+        # Get the actual index from our shuffled list
+        actual_index = self.indexes[index]
+        
+        # Read labels
+        y = self.database["labels"][actual_index]
+        
+        # Load soundfile data
+        data = self.read_file(actual_index)
+        if data.shape[0] > self.n_samps:
+            print(
+                "Warning - too many samples: {} > {}".format(
+                    data.shape[0], self.n_samps
+                )
+            )
+        x = data[: self.n_samps]
+        
+        # Convert to tensors and add channel dimension
+        x = torch.FloatTensor(x).unsqueeze(0)  # Add channel dimension (1, n_samps)
+        y = torch.FloatTensor(y)
+        
+        if self.for_autoencoder:
+            return y, y
+        return x, y
 
     def on_epoch_end(self):
         "Updates indexes after each epoch"
@@ -94,31 +107,7 @@ class SoundDataGenerator(keras.utils.Sequence):
         fs, data = wavfile.read(filename)
         return data
 
-    def __data_generation(self, list_IDs_temp):
-        # X : (n_samples, *dim, n_channels)
-        "Generates data containing batch_size samples"
-        # Initialization
-        # X = np.empty((self.batch_size, *self.dim))
-        # y = np.empty((self.batch_size), dtype=int)
-
-        # Generate data
-        X = []
-        y = []
-        for i in list_IDs_temp:
-            # Read labels
-            y.append(self.database["labels"][i])
-            # Load soundfile data
-            data = self.read_file(i)
-            if data.shape[0] > self.n_samps:
-                print(
-                    "Warning - too many samples: {} > {}".format(
-                        data.shape[0], self.n_samps
-                    )
-                )
-            X.append(data[: self.n_samps])
-        Xd = np.expand_dims(np.vstack(X), axis=2)
-        yd = np.vstack(y)
-
-        if self.for_autoencoder:
-            return yd, yd
-        return Xd, yd
+    def shuffle(self):
+        "Shuffle the dataset - call this at the start of each epoch"
+        if self.shuffle:
+            np.random.shuffle(self.indexes)

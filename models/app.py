@@ -6,11 +6,11 @@ from typing import Callable, List
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader
 from dotenv import load_dotenv
-from tensorflow import keras
-from tensorflow.keras import backend as K
-from tensorflow.keras.callbacks import CSVLogger
 
 from generators.parameters import ParameterSet, ParamValue
 from models.common.data_generator import SoundDataGenerator
@@ -50,7 +50,7 @@ def mean_percentile_rank(y_true, y_pred, k=5):
     # TODO
 
 
-def top_k_mean_accuracy(y_true, y_pred, k=5):
+def top_k_mean_accuracy(y_true: torch.Tensor, y_pred: torch.Tensor, k: int = 5) -> torch.Tensor:
     """
     @ paper
     The top-k mean accuracy is obtained by computing the top-k
@@ -60,68 +60,94 @@ def top_k_mean_accuracy(y_true, y_pred, k=5):
     parameter for 𝑘 = 1, ... ,5.
     """
     # TODO: per parameter?
-    original_shape = tf.shape(y_true)
-    y_true = tf.reshape(y_true, (-1, tf.shape(y_true)[-1]))
-    y_pred = tf.reshape(y_pred, (-1, tf.shape(y_pred)[-1]))
-    top_k = K.in_top_k(y_pred, tf.cast(tf.argmax(y_true, axis=-1), "int32"), k)
-    correct_pred = tf.reshape(top_k, original_shape[:-1])
-    return tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+    batch_size = y_true.size(0)
+    
+    # Get the indices of the true values (argmax of one-hot encoded)
+    y_true_indices = torch.argmax(y_true, dim=-1)
+    
+    # Get top-k predictions
+    _, top_k_indices = torch.topk(y_pred, k, dim=-1)
+    
+    # Check if true indices are in top-k predictions
+    correct = torch.zeros_like(y_true_indices, dtype=torch.bool)
+    for i in range(k):
+        correct |= (top_k_indices[:, i] == y_true_indices)
+    
+    return torch.mean(correct.float())
 
 
-def summarize_compile(model: keras.Model):
-    model.summary(line_length=80, positions=[0.33, 0.65, 0.8, 1.0])
-    # Specify the training configuration (optimizer, loss, metrics)
-    model.compile(
-        optimizer=keras.optimizers.Adam(),  # Optimizer- Adam [14] optimizer
-        # Loss function to minimize
-        # @paper: Therefore, we converged on using sigmoid activations with binary cross entropy loss.
-        loss=keras.losses.BinaryCrossentropy(),
-        # List of metrics to monitor
-        metrics=[
-            # @paper: 1) Mean Percentile Rank?
-            # mean_percentile_rank,
-            # @paper: 2) Top-k mean accuracy based evaluation
-            top_k_mean_accuracy,
-            # @paper: 3) Mean Absolute Error based evaluation
-            keras.metrics.MeanAbsoluteError(),
-        ],
-    )
+def setup_model_training(model: nn.Module, device: torch.device):
+    """
+    Setup model for training with optimizer and loss function
+    """
+    print(f"Model has {sum(p.numel() for p in model.parameters())} parameters")
+    
+    # Move model to device
+    model = model.to(device)
+    
+    # Optimizer - Adam optimizer as per paper
+    optimizer = optim.Adam(model.parameters())
+    
+    # Loss function - Binary Cross Entropy as per paper
+    criterion = nn.BCELoss()
+    
+    return model, optimizer, criterion
 
 
-def fit(
-    model: keras.Model,
-    x_train: np.ndarray,
-    y_train: np.ndarray,
-    x_val: np.ndarray,
-    y_val: np.ndarray,
-    batch_size: int = 16,
-    epochs: int = 100,
-) -> keras.Model:
+def train_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    optimizer: optim.Optimizer,
+    criterion: nn.Module,
+    device: torch.device,
+) -> tuple:
+    """Train model for one epoch"""
+    model.train()
+    running_loss = 0.0
+    running_top_k_acc = 0.0
+    running_mae = 0.0
+    num_batches = len(dataloader)
+    
+    for batch_idx, (data, targets) in enumerate(dataloader):
+        data, targets = data.to(device), targets.to(device)
+        
+        optimizer.zero_grad()
+        outputs = model(data)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+        running_top_k_acc += top_k_mean_accuracy(targets, outputs).item()
+        running_mae += torch.mean(torch.abs(outputs - targets)).item()
+    
+    return running_loss / num_batches, running_top_k_acc / num_batches, running_mae / num_batches
 
-    # @paper:
-    # with a minibatch size of 16 for
-    # 100 epochs. The best weights for each model were set by
-    # employing an early stopping procedure.
-    logging.info("# Fit model on training data")
-    history = model.fit(
-        x_train,
-        y_train,
-        batch_size=batch_size,
-        epochs=epochs,
-        # @paper:
-        # Early stopping procedure:
-        # We pass some validation for
-        # monitoring validation loss and metrics
-        # at the end of each epoch
-        validation_data=(x_val, y_val),
-        verbose=0,
-    )
 
-    # The returned "history" object holds a record
-    # of the loss values and metric values during training
-    logging.info("\nhistory dict:", history.history)
-
-    return model
+def validate_epoch(
+    model: nn.Module,
+    dataloader: DataLoader,
+    criterion: nn.Module,
+    device: torch.device,
+) -> tuple:
+    """Validate model for one epoch"""
+    model.eval()
+    running_loss = 0.0
+    running_top_k_acc = 0.0
+    running_mae = 0.0
+    num_batches = len(dataloader)
+    
+    with torch.no_grad():
+        for data, targets in dataloader:
+            data, targets = data.to(device), targets.to(device)
+            outputs = model(data)
+            loss = criterion(outputs, targets)
+            
+            running_loss += loss.item()
+            running_top_k_acc += top_k_mean_accuracy(targets, outputs).item()
+            running_mae += torch.mean(torch.abs(outputs - targets)).item()
+    
+    return running_loss / num_batches, running_top_k_acc / num_batches, running_mae / num_batches
 
 
 def compare(target, prediction, params, precision=1, print_output=False):
@@ -233,7 +259,7 @@ to actually make the model, to keep it as flexible as possible.
 # Params:
 # - dataset_name (dataset name)
 # - model_name: (C1..C6,e2e)
-# - model_callback: function taking name,inputs,outputs,data_format and returning a Keras model
+# - model_callback: function taking name,inputs,outputs,data_format and returning a PyTorch model
 # - epochs: int
 # - dataset_dir: place to find input data
 # - output_dir: place to put outputs
@@ -241,6 +267,7 @@ to actually make the model, to keep it as flexible as possible.
 # - dataset_file (override dataset filename)
 # - data_format (channels_first or channels_last)
 # - run_name: to save this run as
+# - batch_size: batch size for training
 """
 
 
@@ -249,7 +276,7 @@ def train_model(
     dataset_name: str,
     model_name: str,
     epochs: int,
-    model_callback: Callable[[str, int, int, str], keras.Model],
+    model_callback: Callable[[str, int, int, str], nn.Module],
     dataset_dir: str,
     output_dir: str,  # Directory names
     dataset_file: str = None,
@@ -260,6 +287,7 @@ def train_model(
     resume: bool = False,
     checkpoint: bool = True,
     model_type: str = "E2E",
+    batch_size: int = 64,
 ):
 
     if not dataset_file:
@@ -273,14 +301,15 @@ def train_model(
     if not run_name:
         run_name = dataset_name + "_" + model_name
 
-    model_file = f"{output_dir}/{run_name}.h5"
-    best_model_file = f"{output_dir}/{run_name}_best.h5"
-    checkpoint_model_file = f"{output_dir}/{run_name}_checkpoint.h5"
+    model_file = f"{output_dir}/{run_name}.pth"
+    best_model_file = f"{output_dir}/{run_name}_best.pth"
+    checkpoint_model_file = f"{output_dir}/{run_name}_checkpoint.pth"
     history_file = f"{output_dir}/{run_name}.csv"
     history_graph_file = f"{output_dir}/{run_name}.pdf"
 
-    gpu_avail = tf.test.is_gpu_available()  # True/False
-    cuda_gpu_avail = tf.test.is_gpu_available(cuda_only=True)  # True/False
+    # Check for GPU availability
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    cuda_gpu_avail = torch.cuda.is_available()
 
     print("+" * 30)
     print(f"++ {run_name}")
@@ -289,35 +318,45 @@ def train_model(
     )
     print(f"Saving model in {output_dir} as {model_file}")
     print(f"Saving history as {history_file}")
-    print(f"GPU: {gpu_avail}, with CUDA: {cuda_gpu_avail}")
+    print(f"Device: {device}, CUDA available: {cuda_gpu_avail}")
     print("+" * 30)
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Get training and validation generators
-    params = {"data_file": dataset_file, "batch_size": 64, "shuffle": True}
-    training_generator = SoundDataGenerator(first=0.8, **params)
-    validation_generator = SoundDataGenerator(last=0.2, **params)
-    n_samples = training_generator.get_audio_length()
+    # Get training and validation datasets
+    training_dataset = SoundDataGenerator(
+        data_file=dataset_file, batch_size=batch_size, shuffle=True, first=0.8
+    )
+    validation_dataset = SoundDataGenerator(
+        data_file=dataset_file, batch_size=batch_size, shuffle=False, last=0.2
+    )
+    
+    # Create data loaders
+    train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
+    
+    n_samples = training_dataset.get_audio_length()
     print(f"get_audio_length: {n_samples}")
-    n_outputs = training_generator.get_label_size()
+    n_outputs = training_dataset.get_label_size()
 
-    # set keras image_data_format
-    # NOTE: on CPU only `channels_last` is supported
-    keras.backend.set_image_data_format(data_format)
-
-    model: keras.Model = None
+    # Initialize model
+    model: nn.Module = None
+    initial_epoch = 0
+    history_data = []
+    
     if resume and os.path.exists(checkpoint_model_file):
-        history = pd.read_csv(history_file)
-        # Note - its zero indexed in the file, but 1 indexed in the display
-        initial_epoch: int = max(history.iloc[:, 0]) + 1
-        print(
-            f"Resuming from model file: {checkpoint_model_file} after epoch {initial_epoch}"
+        history_df = pd.read_csv(history_file)
+        initial_epoch = max(history_df.iloc[:, 0]) + 1 if not history_df.empty else 0
+        print(f"Resuming from model file: {checkpoint_model_file} after epoch {initial_epoch}")
+        
+        model = model_callback(
+            model_name=model_name,
+            inputs=n_samples,
+            outputs=n_outputs,
+            data_format=data_format,
         )
-        model = keras.models.load_model(
-            checkpoint_model_file,
-            custom_objects={"top_k_mean_accuracy": top_k_mean_accuracy},
-        )
+        model.load_state_dict(torch.load(checkpoint_model_file, map_location=device))
+        history_data = history_df.to_dict('records')
     else:
         model = model_callback(
             model_name=model_name,
@@ -325,75 +364,95 @@ def train_model(
             outputs=n_outputs,
             data_format=data_format,
         )
-        # Summarize and compile the model
-        summarize_compile(model)
-        initial_epoch = 0
-        open(history_file, "w").close()
+        # Create empty history file
+        pd.DataFrame().to_csv(history_file, index=False)
 
-    callbacks = []
-    best_callback = keras.callbacks.ModelCheckpoint(
-        filepath=best_model_file,
-        save_weights_only=False,
-        save_best_only=True,
-        verbose=1,
-    )
-    checkpoint_callback = keras.callbacks.ModelCheckpoint(
-        filepath=checkpoint_model_file,
-        save_weights_only=False,
-        save_best_only=False,
-        verbose=1,
-    )
-    if save_best:
-        callbacks.append(best_callback)
-    if checkpoint:
-        callbacks.append(checkpoint_callback)
-    callbacks.append(CSVLogger(history_file, append=True))
+    # Setup training
+    model, optimizer, criterion = setup_model_training(model, device)
 
-    # Fit the model
-    history = None
+    # Training loop
+    best_val_loss = float('inf')
+    
     try:
-        # TODO: fix incompatible shapes during spectrogram_cnn
-        history = model.fit(
-            x=training_generator,
-            validation_data=validation_generator,
-            epochs=epochs,
-            callbacks=callbacks,
-            initial_epoch=initial_epoch,
-            verbose=0,  # https://github.com/tensorflow/tensorflow/issues/38064
-        )
+        for epoch in range(initial_epoch, epochs):
+            print(f"Epoch {epoch+1}/{epochs}")
+            
+            # Shuffle training data
+            training_dataset.shuffle()
+            
+            # Train
+            train_loss, train_top_k_acc, train_mae = train_epoch(
+                model, train_loader, optimizer, criterion, device
+            )
+            
+            # Validate
+            val_loss, val_top_k_acc, val_mae = validate_epoch(
+                model, val_loader, criterion, device
+            )
+            
+            print(f"Train Loss: {train_loss:.4f}, Train Top-K Acc: {train_top_k_acc:.4f}, Train MAE: {train_mae:.4f}")
+            print(f"Val Loss: {val_loss:.4f}, Val Top-K Acc: {val_top_k_acc:.4f}, Val MAE: {val_mae:.4f}")
+            
+            # Save history
+            epoch_data = {
+                'epoch': epoch,
+                'loss': train_loss,
+                'top_k_mean_accuracy': train_top_k_acc,
+                'mean_absolute_error': train_mae,
+                'val_loss': val_loss,
+                'val_top_k_mean_accuracy': val_top_k_acc,
+                'val_mean_absolute_error': val_mae,
+            }
+            history_data.append(epoch_data)
+            
+            # Save checkpoint
+            if checkpoint:
+                torch.save(model.state_dict(), checkpoint_model_file)
+            
+            # Save best model
+            if save_best and val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save(model.state_dict(), best_model_file)
+                print(f"New best model saved with val_loss: {val_loss:.4f}")
+            
+            # Save history to CSV
+            pd.DataFrame(history_data).to_csv(history_file, index=False)
+            
     except Exception as e:
-        print(f"Something went wrong during `model.fit`: {e}")
+        print(f"Something went wrong during training: {e}")
 
-    # Save model
-    model.save(model_file)
+    # Save final model
+    torch.save(model.state_dict(), model_file)
 
-    # Save history
-    if history:
+    # Save history plot
+    if history_data:
         try:
-            hist_df = pd.DataFrame(history.history)
+            hist_df = pd.DataFrame(history_data)
             try:
                 fig = hist_df.plot(subplots=True, figsize=(8, 25))
                 fig[0].get_figure().savefig(history_graph_file)
             except Exception as e:
                 print("Couldn't create history graph")
                 print(e)
-
         except Exception as e:
             print("Couldn't save history")
             print(e)
 
-    # evaluate prediction on random sample from validation set
-    # Parameter data - needed for decoding!
+    # Evaluate prediction on random sample from validation set
     with open(parameters_file, "rb") as f:
         parameters: ParameterSet = load(f)
 
-    # Shuffle data
-    validation_generator.on_epoch_end()
-    X, y = validation_generator.__getitem__(0)
-
-    if model_type == "STFT":
-        # stft expects shape (channel, sample_rate)
-        X = np.moveaxis(X, 1, -1)
-
-    prediction: np.ndarray = model.predict(X)
-    evaluate(prediction, X, y, parameters)
+    # Get a sample batch for evaluation
+    model.eval()
+    with torch.no_grad():
+        for X, y in val_loader:
+            X, y = X.to(device), y.to(device)
+            prediction = model(X)
+            
+            # Convert back to numpy for evaluation
+            X_np = X.cpu().numpy()
+            y_np = y.cpu().numpy()
+            prediction_np = prediction.cpu().numpy()
+            
+            evaluate(prediction_np, X_np, y_np, parameters)
+            break  # Only evaluate first batch
