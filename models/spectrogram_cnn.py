@@ -38,7 +38,7 @@ def assemble_model(
     arch_layers: list,
     n_dft: int = 512,  # Orig:128
     n_hop: int = 256,  #  Orig:64
-    data_format: str = "channels_first",
+    data_format: str = "channels_last",
 ) -> keras.Model:
     
     # Ensure DFT size is not larger than input
@@ -107,7 +107,7 @@ Standard callback to get a model ready to train
 
 
 def get_model(
-    model_name: str, inputs: int, outputs: int, data_format: str = "channels_first"
+    model_name: str, inputs: int, outputs: int, data_format: str = "channels_last"
 ) -> keras.Model:
     arch_layers = layers_map.get("C1")
     if model_name in layers_map:

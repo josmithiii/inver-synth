@@ -15,6 +15,7 @@ from tensorflow.keras.callbacks import CSVLogger
 
 from generators.parameters import ParameterSet, ParamValue
 from models.common.data_generator import SoundDataGenerator
+from models.common.device_utils import setup_tensorflow_for_training
 
 """Dotenv Config"""
 env_path = Path(".") / ".env"
@@ -280,8 +281,8 @@ def train_model(
     history_file = f"{output_dir}/{run_name}.csv"
     history_graph_file = f"{output_dir}/{run_name}.pdf"
 
-    gpu_avail = tf.test.is_gpu_available()  # True/False
-    cuda_gpu_avail = tf.test.is_gpu_available(cuda_only=True)  # True/False
+    # Setup TensorFlow device (CUDA > MPS > CPU)
+    device_name, device_type, use_mixed_precision = setup_tensorflow_for_training()
 
     print("+" * 30)
     print(f"++ {run_name}")
@@ -290,7 +291,9 @@ def train_model(
     )
     print(f"Saving model in {output_dir} as {model_file}")
     print(f"Saving history as {history_file}")
-    print(f"GPU: {gpu_avail}, with CUDA: {cuda_gpu_avail}")
+    print(f"Device: {device_name} ({device_type.upper()})")
+    if use_mixed_precision:
+        print("Mixed precision training: ENABLED")
     print("+" * 30)
 
     os.makedirs(output_dir, exist_ok=True)
@@ -313,7 +316,10 @@ def train_model(
     n_outputs = training_generator.get_label_size()
 
     # set keras image_data_format
-    # NOTE: on CPU only `channels_last` is supported
+    # NOTE: on CPU only `channels_last` is supported, but MPS supports both
+    if device_type == "cpu" and data_format == "channels_first":
+        print("WARNING: CPU only supports channels_last format, switching from channels_first")
+        data_format = "channels_last"
     keras.backend.set_image_data_format(data_format)
 
     model: keras.Model = None

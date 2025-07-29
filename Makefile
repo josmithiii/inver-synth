@@ -8,6 +8,10 @@ DATASET_SIZE := 150
 SAMPLE_RATE := 16384
 AUDIO_LENGTH := 1.0
 
+# Device detection - auto-detect best available device (CUDA > MPS > CPU)
+DETECTED_DEVICE := $(shell $(PYTHON) detect_device.py 2>/dev/null || echo "cpu")
+TF_DEVICE := $(or $(TF_DEVICE),$(DETECTED_DEVICE))
+
 # File targets
 DATASET_FILE := test_datasets/InverSynth_data.hdf5
 PARAMS_FILE := test_datasets/InverSynth_params.pckl
@@ -36,6 +40,10 @@ all: models evaluation
 h help:
 	@echo "InverSynth Makefile Targets:"
 	@echo ""
+	@echo "Device Configuration:"
+	@echo "  Current device: $(TF_DEVICE) (auto-detected: $(DETECTED_DEVICE))"
+	@echo "  Override with: TF_DEVICE=cuda/mps/cpu make model-*"
+	@echo ""
 	@echo "Setup:"
 	@echo "  setup          - Initialize project directories"
 	@echo "  dataset        - Generate training dataset ($(DATASET_SIZE) examples, only if source files changed)"
@@ -55,7 +63,8 @@ h help:
 	@echo ""
 	@echo "Utilities:"
 	@echo "  test           - Run test suite"
-	@echo "  clean          - Remove generated files"
+	@echo "  clean          - Remove all generated files:"
+	@echo "  clean-dataset  - Remove dataset only"
 	@echo "  clean-models   - Remove trained models only"
 	@echo "  clean-results  - Remove evaluation results only"
 
@@ -96,36 +105,36 @@ models: model-e2e model-c1 model-c3 model-c6 model-c6xl
 model-e2e: $(MODEL_E2E)
 
 $(MODEL_E2E): $(DATASET_FILE)
-	@echo "🔥 Training E2E CNN model..."
-	$(PYTHON) -m models.e2e_cnn
+	@echo "🔥 Training E2E CNN model on $(TF_DEVICE)..."
+	TF_DEVICE=$(TF_DEVICE) $(PYTHON) -m models.e2e_cnn
 	@echo "✅ E2E model trained: $(MODEL_E2E)"
 
 model-c1: $(MODEL_C1)
 
 $(MODEL_C1): $(DATASET_FILE)
-	@echo "📊 Training C1 architecture (2 conv layers)..."
-	$(PYTHON) -m models.spectrogram_cnn --model C1
+	@echo "📊 Training C1 architecture (2 conv layers) on $(TF_DEVICE)..."
+	TF_DEVICE=$(TF_DEVICE) $(PYTHON) -m models.spectrogram_cnn --model C1
 	@echo "✅ C1 model trained: $(MODEL_C1)"
 
 model-c3: $(MODEL_C3)
 
 $(MODEL_C3): $(DATASET_FILE)
-	@echo "📊 Training C3 architecture (4 conv layers)..."
-	$(PYTHON) -m models.spectrogram_cnn --model C3
+	@echo "📊 Training C3 architecture (4 conv layers) on $(TF_DEVICE)..."
+	TF_DEVICE=$(TF_DEVICE) $(PYTHON) -m models.spectrogram_cnn --model C3
 	@echo "✅ C3 model trained: $(MODEL_C3)"
 
 model-c6: $(MODEL_C6)
 
 $(MODEL_C6): $(DATASET_FILE)
-	@echo "📊 Training C6 architecture (7 conv layers)..."
-	$(PYTHON) -m models.spectrogram_cnn --model C6
+	@echo "📊 Training C6 architecture (7 conv layers) on $(TF_DEVICE)..."
+	TF_DEVICE=$(TF_DEVICE) $(PYTHON) -m models.spectrogram_cnn --model C6
 	@echo "✅ C6 model trained: $(MODEL_C6)"
 
 model-c6xl: $(MODEL_C6XL)
 
 $(MODEL_C6XL): $(DATASET_FILE)
-	@echo "📊 Training C6XL architecture (7 conv layers, XL)..."
-	$(PYTHON) -m models.spectrogram_cnn --model C6XL
+	@echo "📊 Training C6XL architecture (7 conv layers, XL) on $(TF_DEVICE)..."
+	TF_DEVICE=$(TF_DEVICE) $(PYTHON) -m models.spectrogram_cnn --model C6XL
 	@echo "✅ C6XL model trained: $(MODEL_C6XL)"
 
 # Evaluation targets
