@@ -275,9 +275,9 @@ def train_model(
     if not run_name:
         run_name = dataset_name + "_" + model_name
 
-    model_file = f"{output_dir}/{run_name}.h5"
-    best_model_file = f"{output_dir}/{run_name}_best.h5"
-    checkpoint_model_file = f"{output_dir}/{run_name}_checkpoint.h5"
+    model_file = f"{output_dir}/{run_name}.keras"
+    best_model_file = f"{output_dir}/{run_name}_best.keras"
+    checkpoint_model_file = f"{output_dir}/{run_name}_checkpoint.keras"
     history_file = f"{output_dir}/{run_name}.csv"
     history_graph_file = f"{output_dir}/{run_name}.pdf"
 

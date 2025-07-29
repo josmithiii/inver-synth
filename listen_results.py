@@ -150,7 +150,9 @@ if __name__ == "__main__":
     
     # Check available models
     models = []
-    if os.path.exists("output/InverSynth_e2e.h5"):
+    if os.path.exists("output/InverSynth_e2e.keras"):
+        models.append("output/InverSynth_e2e.keras")
+    elif os.path.exists("output/InverSynth_e2e.h5"):
         models.append("output/InverSynth_e2e.h5")
     
     if not models:

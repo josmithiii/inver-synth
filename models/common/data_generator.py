@@ -17,8 +17,10 @@ class SoundDataGenerator(keras.utils.Sequence):
         first: float = 0.0,
         channels_last=False,
         for_autoencoder=False,
+        **kwargs
     ):
         "Initialization"
+        super().__init__(**kwargs)
         self.dim = (1, n_samps)
         self.batch_size = batch_size
         self.shuffle = shuffle

@@ -15,11 +15,11 @@ TF_DEVICE := $(or $(TF_DEVICE),$(DETECTED_DEVICE))
 # File targets
 DATASET_FILE := test_datasets/InverSynth_data.hdf5
 PARAMS_FILE := test_datasets/InverSynth_params.pckl
-MODEL_E2E := output/InverSynth_e2e.h5
-MODEL_C1 := output/InverSynth_C1.h5
-MODEL_C3 := output/InverSynth_C3.h5
-MODEL_C6 := output/InverSynth_C6.h5
-MODEL_C6XL := output/InverSynth_C6XL.h5
+MODEL_E2E := output/InverSynth_e2e.keras
+MODEL_C1 := output/InverSynth_C1.keras
+MODEL_C3 := output/InverSynth_C3.keras
+MODEL_C6 := output/InverSynth_C6.keras
+MODEL_C6XL := output/InverSynth_C6XL.keras
 
 # Source files that affect dataset generation
 GENERATOR_SOURCES := generators/fm_generator.py generators/generator.py generators/parameters.py generators/sine_generator.py generators/vst_generator.py
@@ -180,7 +180,7 @@ detailed-analysis: $(MODEL_E2E) $(PARAMS_FILE)
 			if os.path.exists(model_file): \
 				print(f'📈 Analyzing {model_file}...'); \
 				model = keras.models.load_model(model_file, custom_objects={'top_k_mean_accuracy': top_k_mean_accuracy}); \
-				model_name = os.path.basename(model_file).replace('.h5', ''); \
+				model_name = os.path.basename(model_file).replace('.keras', '').replace('.h5', ''); \
 				run_comparison(model, generator, 'InverSynth', num_samples=3, output_dir=f'detailed_comparison_{model_name}') \
 	"
 	@echo "✅ Detailed analysis complete!"
@@ -212,7 +212,7 @@ clean: clean-models clean-results clean-dataset
 
 clean-models:
 	@echo "🗑️  Removing trained models..."
-	@rm -f output/*.h5 output/*.csv
+	@rm -f output/*.h5 output/*.keras output/*.csv
 
 clean-results:
 	@echo "🗑️  Removing evaluation results..."
