@@ -17,6 +17,9 @@ MODEL_C3 := output/InverSynth_C3.h5
 MODEL_C6 := output/InverSynth_C6.h5
 MODEL_C6XL := output/InverSynth_C6XL.h5
 
+# Source files that affect dataset generation
+GENERATOR_SOURCES := generators/fm_generator.py generators/generator.py generators/parameters.py generators/sine_generator.py generators/vst_generator.py
+
 # Evaluation outputs
 TRAINING_CURVES := training_curves.png
 AUDIO_COMPARISONS := comparison_results/InverSynth
@@ -35,7 +38,7 @@ h help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  setup          - Initialize project directories"
-	@echo "  dataset        - Generate training dataset ($(DATASET_SIZE) examples)"
+	@echo "  dataset        - Generate training dataset ($(DATASET_SIZE) examples, only if source files changed)"
 	@echo ""
 	@echo "Training:"
 	@echo "  models         - Train all neural network architectures"
@@ -72,10 +75,10 @@ output/:
 	@echo "📁 Creating output directory..."
 	mkdir -p output
 
-# Dataset generation
+# Dataset generation - only regenerates when generator source files change
 dataset: $(DATASET_FILE)
 
-$(DATASET_FILE): setup
+$(DATASET_FILE): $(GENERATOR_SOURCES) | test_datasets/ test_waves/ output/
 	@echo "📊 Generating training dataset ($(DATASET_SIZE) examples)..."
 	$(PYTHON) -m generators.fm_generator \
 		--num_examples $(DATASET_SIZE) \
