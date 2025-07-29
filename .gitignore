@@ -139,3 +139,5 @@ models/saved/large
 
 # notebook experiments
 notebooks/experiments
+
+.claude
