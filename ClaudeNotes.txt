@@ -1,0 +1,44 @@
+⏺ Summary 2025-07-29-15-33
+
+The make models command has been successfully debugged and fixed!
+Here's what was wrong and how it was resolved:
+
+  The Problem
+
+  The C6 and C6XL architectures had overly aggressive convolutional
+  layer configurations that caused negative output dimensions. After
+  multiple downsampling layers, the spatial dimensions became too
+  small (1×4) to support the final 3×3 convolutional kernels.
+
+  The Root Cause
+
+  - The spectrogram produces dimensions (1, 64, 257) after permutation
+  - The C6/C6XL architectures progressively downsample through 6 layers
+  - Layer 6 tried to apply a (3, 3) kernel to a (1, 4) spatial input, which is impossible
+
+  The Fix
+
+  Modified the final convolutional layer in both architectures in
+  /Users/jos/w/inver-synth/models/common/architectures.py:
+
+  C6 architecture (line 47):
+  C(128, (1, 3), (1, 2))  # Changed from (3,3) to (1,3) to fit 1x4 input
+
+  C6XL architecture (line 57):
+  C(256, (1, 3), (1, 2))  # Changed from (3,3) to (1,3) to fit 1x4 input
+
+  Additional Compatibility
+
+  The existing code already handles CPU/GPU data format compatibility
+  automatically - when running on CPU (which only supports
+  channels_last), the system automatically switches from
+  channels_first to channels_last format.
+
+  Result
+
+  All neural network models now train successfully:
+  - ✅ End-to-End CNN (E2E)
+  - ✅ C1 Spectrogram CNN (2 layers)
+  - ✅ C3 Spectrogram CNN (4 layers)
+  - ✅ C6 Spectrogram CNN (7 layers)
+  - ✅ C6XL Spectrogram CNN (7 layers, XL)
