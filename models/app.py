@@ -4,6 +4,7 @@ from pathlib import Path
 from pickle import load
 from typing import Callable, List
 
+import h5py
 import numpy as np
 import pandas as pd
 import tensorflow as tf
@@ -295,7 +296,16 @@ def train_model(
     os.makedirs(output_dir, exist_ok=True)
 
     # Get training and validation generators
-    params = {"data_file": dataset_file, "batch_size": 64, "shuffle": True}
+    # Read dataset to determine appropriate batch size
+    with h5py.File(dataset_file, "r") as f:
+        total_samples = len(f["files"])
+    
+    # Calculate batch size to ensure both generators have at least 1 batch
+    train_samples = int(total_samples * 0.8)
+    val_samples = total_samples - train_samples
+    batch_size = min(64, train_samples, val_samples)  # Ensure at least 1 batch for each
+    
+    params = {"data_file": dataset_file, "batch_size": batch_size, "shuffle": True}
     training_generator = SoundDataGenerator(first=0.8, **params)
     validation_generator = SoundDataGenerator(last=0.2, **params)
     n_samples = training_generator.get_audio_length()

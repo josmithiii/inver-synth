@@ -40,15 +40,21 @@ def assemble_model(
     n_hop: int = 256,  #  Orig:64
     data_format: str = "channels_first",
 ) -> keras.Model:
+    
+    # Ensure DFT size is not larger than input
+    # src.shape is always (n_samples, n_channels) = (16384, 1) in our case
+    input_length = src.shape[0]
+    if n_dft > input_length:
+        n_dft = min(512, input_length)
+        n_hop = n_dft // 2
+        print(f"Adjusted STFT parameters: n_dft={n_dft}, n_hop={n_hop} for input length {input_length}")
 
+    # Create input layer - data generator provides (n_samples, channels) format
     inputs = keras.Input(shape=src.shape, name="stft")
 
-    # Data generator provides (16384, 1) but kapre expects (1, 16384)
-    # Add transpose to convert from data generator format to kapre format
-    if src.shape == (16384, 1):  # Data generator format: (time, channels)
-        audio_input = keras.layers.Lambda(lambda x: keras.ops.transpose(x, (0, 2, 1)))(inputs)
-    else:  # Already in kapre format: (channels, time)
-        audio_input = inputs
+    # Kapre always expects channels_first input: (batch_size, channels, n_samples)
+    # Convert from data generator format (batch_size, n_samples, channels) to Kapre format
+    audio_input = keras.layers.Lambda(lambda x: keras.ops.transpose(x, (0, 2, 1)))(inputs)
 
     # @paper: Spectrogram based CNN that receives the (log) spectrogram matrix as input
 
@@ -56,6 +62,7 @@ def assemble_model(
     # abs(Spectrogram) in a shape of 2D data, i.e.,
     # `(None, n_channel, n_freq, n_time)` if `'channels_first'`,
     # `(None, n_freq, n_time, n_channel)` if `'channels_last'`,
+    # Kapre always expects channels_first input, but data_format controls output format
     x = Spectrogram(
         n_dft=n_dft,
         n_hop=n_hop,
@@ -100,7 +107,7 @@ Standard callback to get a model ready to train
 
 
 def get_model(
-    model_name: str, inputs: int, outputs: int, data_format: str = "channels_last"
+    model_name: str, inputs: int, outputs: int, data_format: str = "channels_first"
 ) -> keras.Model:
     arch_layers = layers_map.get("C1")
     if model_name in layers_map:
