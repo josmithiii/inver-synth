@@ -36,19 +36,19 @@ def assemble_model(
     src: np.ndarray,
     n_outputs: int,
     arch_layers: list,
-    n_dft: int = 128,  # Restored original paper value
-    n_hop: int = 64,  #  Orig:64
+    n_dft: int = 512,  # Orig:128
+    n_hop: int = 256,  #  Orig:64
     data_format: str = "channels_first",
 ) -> keras.Model:
-    
-    # Ensure DFT size is not larger than input
-    input_length = src.shape[0] if data_format == "channels_last" else src.shape[1]
-    if n_dft > input_length:
-        n_dft = min(512, input_length)
-        n_hop = n_dft // 2
-        print(f"Adjusted STFT parameters: n_dft={n_dft}, n_hop={n_hop} for input length {input_length}")
 
     inputs = keras.Input(shape=src.shape, name="stft")
+
+    # Data generator provides (16384, 1) but kapre expects (1, 16384)
+    # Add transpose to convert from data generator format to kapre format
+    if src.shape == (16384, 1):  # Data generator format: (time, channels)
+        audio_input = keras.layers.Lambda(lambda x: keras.ops.transpose(x, (0, 2, 1)))(inputs)
+    else:  # Already in kapre format: (channels, time)
+        audio_input = inputs
 
     # @paper: Spectrogram based CNN that receives the (log) spectrogram matrix as input
 
@@ -59,12 +59,11 @@ def assemble_model(
     x = Spectrogram(
         n_dft=n_dft,
         n_hop=n_hop,
-        input_shape=src.shape,
         trainable_kernel=True,
         name="static_stft",
         image_data_format=data_format,
         return_decibel_spectrogram=True,
-    )(inputs)
+    )(audio_input)
 
     # Swaps order to match the paper?
     # TODO: dig in to this (GPU only?)
@@ -110,15 +109,10 @@ def get_model(
         print(
             f"Warning: {model_name} is not compatible with the spectrogram model. C1 Architecture will be used instead."
         )
-    
-    # Create input shape matching data generator output: (inputs, 1) for channels_last
-    if data_format == "channels_last":
-        input_shape = (inputs, 1)
-    else:
-        input_shape = (1, inputs)
-    
+    # Accept data generator output as-is like E2E model: (inputs, 1) = (16384, 1)
+    # This matches what the data generator actually provides
     return assemble_model(
-        np.zeros(input_shape),
+        np.zeros([inputs, 1]),
         n_outputs=outputs,
         arch_layers=arch_layers,
         data_format=data_format,
