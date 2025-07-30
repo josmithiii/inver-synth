@@ -35,11 +35,11 @@ class E2EModel(nn.Module):
         n_hop: int = 64,
     ):
         super(E2EModel, self).__init__()
-        
+
         # 1D Convolutional layers
         self.conv1d_layers = nn.ModuleList()
         in_channels = 1  # raw audio has 1 channel
-        
+
         for arch_layer in c1d_layers:
             self.conv1d_layers.append(
                 nn.Conv1d(
@@ -51,11 +51,11 @@ class E2EModel(nn.Module):
                 )
             )
             in_channels = arch_layer.filters
-        
+
         # 2D Convolutional layers
         self.conv2d_layers = nn.ModuleList()
         in_channels = 1  # after reshape, we have 1 channel
-        
+
         for arch_layer in c2d_layers:
             self.conv2d_layers.append(
                 nn.Conv2d(
@@ -67,54 +67,54 @@ class E2EModel(nn.Module):
                 )
             )
             in_channels = arch_layer.filters
-        
+
         # Calculate the size after convolutions for the dense layer
         # This will need to be computed based on input size and conv operations
         self.fc_input_size = self._calculate_fc_input_size(input_size)
-        
+
         # Fully connected layers
         self.fc1 = nn.Linear(self.fc_input_size, 512)
         self.fc2 = nn.Linear(512, n_outputs)
-        
+
     def _calculate_fc_input_size(self, input_size: int) -> int:
         # Create a dummy input to calculate the size after convolutions
         x = torch.zeros(1, 1, input_size)  # batch_size=1, channels=1, length=input_size
-        
+
         # Apply 1D convolutions
         for conv1d in self.conv1d_layers:
             x = F.relu(conv1d(x))
-        
+
         # Reshape for 2D convolutions (add spatial dimension)
         # Based on the original reshape (61, 257, 1)
         batch_size, channels, length = x.shape
         x = x.view(batch_size, 1, 61, 257)  # reshape to 2D
-        
+
         # Apply 2D convolutions
         for conv2d in self.conv2d_layers:
             x = F.relu(conv2d(x))
-        
+
         return x.view(1, -1).size(1)
-    
+
     def forward(self, x):
         # Apply 1D convolutions with ReLU activation
         for conv1d in self.conv1d_layers:
             x = F.relu(conv1d(x))
-        
+
         # Reshape for 2D convolutions
         batch_size, channels, length = x.shape
         x = x.view(batch_size, 1, 61, 257)  # reshape to 2D
-        
+
         # Apply 2D convolutions with ReLU activation
         for conv2d in self.conv2d_layers:
             x = F.relu(conv2d(x))
-        
+
         # Flatten
         x = x.view(x.size(0), -1)
-        
+
         # Fully connected layers
         x = F.relu(self.fc1(x))
         x = torch.sigmoid(self.fc2(x))  # sigmoid activation for final output
-        
+
         return x
 
 

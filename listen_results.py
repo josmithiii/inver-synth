@@ -6,14 +6,17 @@ Also generates spectrograms for visual comparison
 
 import os
 import pickle
-import numpy as np
-import matplotlib.pyplot as plt
+
 import librosa
 import librosa.display
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
+
+from generators.fm_generator import InverSynthGenerator
 from models.app import top_k_mean_accuracy
 from models.comparison import run_comparison
-from generators.fm_generator import InverSynthGenerator
+
 
 def plot_spectrogram_comparison(original_file, reconstructed_file, output_dir):
     """Plot spectrograms of original vs reconstructed audio side by side"""
@@ -59,8 +62,8 @@ def create_comparison_samples(model_file, num_samples=5):
         
         # Determine model architecture from file name
         if 'e2e' in model_file:
-            from models.e2e_cnn import E2EModel
             from models.common.architectures import cE2E_1d_layers, cE2E_2d_layers
+            from models.e2e_cnn import E2EModel
             model = E2EModel(
                 n_outputs=256,
                 c1d_layers=cE2E_1d_layers,
@@ -69,9 +72,9 @@ def create_comparison_samples(model_file, num_samples=5):
             )
         else:
             # Spectrogram model - extract architecture from filename
-            from models.spectrogram_cnn import SpectrogramModel
             from models.common.architectures import get_architecture_layers
-            
+            from models.spectrogram_cnn import SpectrogramModel
+
             # Extract architecture from filename (e.g., "InverSynth_C6.pth" -> "C6")
             arch_name = 'C1'  # Default
             for arch in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C6XL']:
@@ -92,8 +95,8 @@ def create_comparison_samples(model_file, num_samples=5):
             checkpoint = torch.load(pth_file, map_location='cpu')
             
             if 'e2e' in pth_file:
-                from models.e2e_cnn import E2EModel
                 from models.common.architectures import cE2E_1d_layers, cE2E_2d_layers
+                from models.e2e_cnn import E2EModel
                 model = E2EModel(
                     n_outputs=256,
                     c1d_layers=cE2E_1d_layers,
@@ -101,9 +104,9 @@ def create_comparison_samples(model_file, num_samples=5):
                     input_size=16384
                 )
             else:
-                from models.spectrogram_cnn import SpectrogramModel
                 from models.common.architectures import get_architecture_layers
-                
+                from models.spectrogram_cnn import SpectrogramModel
+
                 # Extract architecture from filename
                 arch_name = 'C1'  # Default
                 for arch in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C6XL']:

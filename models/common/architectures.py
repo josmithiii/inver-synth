@@ -93,5 +93,7 @@ layers_map: dict = {
 def get_architecture_layers(arch_name: str) -> list:
     """Get architecture layers by name"""
     if arch_name not in layers_map:
-        raise ValueError(f"Unknown architecture: {arch_name}. Available: {list(layers_map.keys())}")
+        raise ValueError(
+            f"Unknown architecture: {arch_name}. Available: {list(layers_map.keys())}"
+        )
     return layers_map[arch_name]

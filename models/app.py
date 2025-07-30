@@ -9,8 +9,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
 from dotenv import load_dotenv
+from torch.utils.data import DataLoader
 
 from generators.parameters import ParameterSet, ParamValue
 from models.common.data_generator import SoundDataGenerator
@@ -24,7 +24,9 @@ load_dotenv(dotenv_path=env_path)
 
 
 def train_val_split(
-    x_train: np.ndarray, y_train: np.ndarray, split: float = 0.2,
+    x_train: np.ndarray,
+    y_train: np.ndarray,
+    split: float = 0.2,
 ) -> tuple:
 
     slice: int = int(x_train.shape[0] * split)
@@ -50,7 +52,9 @@ def mean_percentile_rank(y_true, y_pred, k=5):
     # TODO
 
 
-def top_k_mean_accuracy(y_true: torch.Tensor, y_pred: torch.Tensor, k: int = 5) -> torch.Tensor:
+def top_k_mean_accuracy(
+    y_true: torch.Tensor, y_pred: torch.Tensor, k: int = 5
+) -> torch.Tensor:
     """
     @ paper
     The top-k mean accuracy is obtained by computing the top-k
@@ -61,18 +65,18 @@ def top_k_mean_accuracy(y_true: torch.Tensor, y_pred: torch.Tensor, k: int = 5) 
     """
     # TODO: per parameter?
     batch_size = y_true.size(0)
-    
+
     # Get the indices of the true values (argmax of one-hot encoded)
     y_true_indices = torch.argmax(y_true, dim=-1)
-    
+
     # Get top-k predictions
     _, top_k_indices = torch.topk(y_pred, k, dim=-1)
-    
+
     # Check if true indices are in top-k predictions
     correct = torch.zeros_like(y_true_indices, dtype=torch.bool)
     for i in range(k):
-        correct |= (top_k_indices[:, i] == y_true_indices)
-    
+        correct |= top_k_indices[:, i] == y_true_indices
+
     return torch.mean(correct.float())
 
 
@@ -81,16 +85,16 @@ def setup_model_training(model: nn.Module, device: torch.device):
     Setup model for training with optimizer and loss function
     """
     print(f"Model has {sum(p.numel() for p in model.parameters())} parameters")
-    
+
     # Move model to device
     model = model.to(device)
-    
+
     # Optimizer - Adam optimizer as per paper
     optimizer = optim.Adam(model.parameters())
-    
+
     # Loss function - Binary Cross Entropy as per paper
     criterion = nn.BCELoss()
-    
+
     return model, optimizer, criterion
 
 
@@ -107,21 +111,25 @@ def train_epoch(
     running_top_k_acc = 0.0
     running_mae = 0.0
     num_batches = len(dataloader)
-    
+
     for batch_idx, (data, targets) in enumerate(dataloader):
         data, targets = data.to(device), targets.to(device)
-        
+
         optimizer.zero_grad()
         outputs = model(data)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
-        
+
         running_loss += loss.item()
         running_top_k_acc += top_k_mean_accuracy(targets, outputs).item()
         running_mae += torch.mean(torch.abs(outputs - targets)).item()
-    
-    return running_loss / num_batches, running_top_k_acc / num_batches, running_mae / num_batches
+
+    return (
+        running_loss / num_batches,
+        running_top_k_acc / num_batches,
+        running_mae / num_batches,
+    )
 
 
 def validate_epoch(
@@ -136,18 +144,22 @@ def validate_epoch(
     running_top_k_acc = 0.0
     running_mae = 0.0
     num_batches = len(dataloader)
-    
+
     with torch.no_grad():
         for data, targets in dataloader:
             data, targets = data.to(device), targets.to(device)
             outputs = model(data)
             loss = criterion(outputs, targets)
-            
+
             running_loss += loss.item()
             running_top_k_acc += top_k_mean_accuracy(targets, outputs).item()
             running_mae += torch.mean(torch.abs(outputs - targets)).item()
-    
-    return running_loss / num_batches, running_top_k_acc / num_batches, running_mae / num_batches
+
+    return (
+        running_loss / num_batches,
+        running_top_k_acc / num_batches,
+        running_mae / num_batches,
+    )
 
 
 def compare(target, prediction, params, precision=1, print_output=False):
@@ -203,7 +215,10 @@ def compare(target, prediction, params, precision=1, print_output=False):
 
 
 def evaluate(
-    prediction: np.ndarray, x: np.ndarray, y: np.ndarray, params: ParameterSet,
+    prediction: np.ndarray,
+    x: np.ndarray,
+    y: np.ndarray,
+    params: ParameterSet,
 ):
 
     print("Prediction Shape: {}".format(prediction.shape))
@@ -330,11 +345,11 @@ def train_model(
     validation_dataset = SoundDataGenerator(
         data_file=dataset_file, batch_size=batch_size, shuffle=False, last=0.2
     )
-    
+
     # Create data loaders
     train_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
-    
+
     n_samples = training_dataset.get_audio_length()
     print(f"get_audio_length: {n_samples}")
     n_outputs = training_dataset.get_label_size()
@@ -343,12 +358,14 @@ def train_model(
     model: nn.Module = None
     initial_epoch = 0
     history_data = []
-    
+
     if resume and os.path.exists(checkpoint_model_file):
         history_df = pd.read_csv(history_file)
         initial_epoch = max(history_df.iloc[:, 0]) + 1 if not history_df.empty else 0
-        print(f"Resuming from model file: {checkpoint_model_file} after epoch {initial_epoch}")
-        
+        print(
+            f"Resuming from model file: {checkpoint_model_file} after epoch {initial_epoch}"
+        )
+
         model = model_callback(
             model_name=model_name,
             inputs=n_samples,
@@ -356,7 +373,7 @@ def train_model(
             data_format=data_format,
         )
         model.load_state_dict(torch.load(checkpoint_model_file, map_location=device))
-        history_data = history_df.to_dict('records')
+        history_data = history_df.to_dict("records")
     else:
         model = model_callback(
             model_name=model_name,
@@ -371,53 +388,57 @@ def train_model(
     model, optimizer, criterion = setup_model_training(model, device)
 
     # Training loop
-    best_val_loss = float('inf')
-    
+    best_val_loss = float("inf")
+
     try:
         for epoch in range(initial_epoch, epochs):
             print(f"Epoch {epoch+1}/{epochs}")
-            
+
             # Shuffle training data
             training_dataset.shuffle()
-            
+
             # Train
             train_loss, train_top_k_acc, train_mae = train_epoch(
                 model, train_loader, optimizer, criterion, device
             )
-            
+
             # Validate
             val_loss, val_top_k_acc, val_mae = validate_epoch(
                 model, val_loader, criterion, device
             )
-            
-            print(f"Train Loss: {train_loss:.4f}, Train Top-K Acc: {train_top_k_acc:.4f}, Train MAE: {train_mae:.4f}")
-            print(f"Val Loss: {val_loss:.4f}, Val Top-K Acc: {val_top_k_acc:.4f}, Val MAE: {val_mae:.4f}")
-            
+
+            print(
+                f"Train Loss: {train_loss:.4f}, Train Top-K Acc: {train_top_k_acc:.4f}, Train MAE: {train_mae:.4f}"
+            )
+            print(
+                f"Val Loss: {val_loss:.4f}, Val Top-K Acc: {val_top_k_acc:.4f}, Val MAE: {val_mae:.4f}"
+            )
+
             # Save history
             epoch_data = {
-                'epoch': epoch,
-                'loss': train_loss,
-                'top_k_mean_accuracy': train_top_k_acc,
-                'mean_absolute_error': train_mae,
-                'val_loss': val_loss,
-                'val_top_k_mean_accuracy': val_top_k_acc,
-                'val_mean_absolute_error': val_mae,
+                "epoch": epoch,
+                "loss": train_loss,
+                "top_k_mean_accuracy": train_top_k_acc,
+                "mean_absolute_error": train_mae,
+                "val_loss": val_loss,
+                "val_top_k_mean_accuracy": val_top_k_acc,
+                "val_mean_absolute_error": val_mae,
             }
             history_data.append(epoch_data)
-            
+
             # Save checkpoint
             if checkpoint:
                 torch.save(model.state_dict(), checkpoint_model_file)
-            
+
             # Save best model
             if save_best and val_loss < best_val_loss:
                 best_val_loss = val_loss
                 torch.save(model.state_dict(), best_model_file)
                 print(f"New best model saved with val_loss: {val_loss:.4f}")
-            
+
             # Save history to CSV
             pd.DataFrame(history_data).to_csv(history_file, index=False)
-            
+
     except Exception as e:
         print(f"Something went wrong during training: {e}")
 
@@ -448,11 +469,11 @@ def train_model(
         for X, y in val_loader:
             X, y = X.to(device), y.to(device)
             prediction = model(X)
-            
+
             # Convert back to numpy for evaluation
             X_np = X.cpu().numpy()
             y_np = y.cpu().numpy()
             prediction_np = prediction.cpu().numpy()
-            
+
             evaluate(prediction_np, X_np, y_np, parameters)
             break  # Only evaluate first batch

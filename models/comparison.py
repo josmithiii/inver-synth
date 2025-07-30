@@ -9,8 +9,8 @@ import torch
 from scipy.io import wavfile
 from scipy.io.wavfile import write as write_wav
 
-from generators.generator import SoundGenerator
 from generators.fm_generator import InverSynthGenerator
+from generators.generator import SoundGenerator
 
 # Conditional import of VSTGenerator (might not be available due to dependencies)
 try:
@@ -57,9 +57,13 @@ def compare(
     model.eval()
     with torch.no_grad():
         # Convert to tensor and add batch dimension
-        X = torch.tensor(data, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, sequence_length)
+        X = (
+            torch.tensor(data, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+        )  # Shape: (1, 1, sequence_length)
         # Get encoded parameters out of model
-        result = model(X).squeeze(0).cpu().numpy()  # Remove batch dimension and convert to numpy
+        result = (
+            model(X).squeeze(0).cpu().numpy()
+        )  # Remove batch dimension and convert to numpy
 
     # Decode prediction, and reconstruct output
     predicted = parameters.encoding_to_settings(result)
@@ -102,7 +106,7 @@ def run_comparison(
         filename = database["files"][i]
         # Handle bytes vs string for filename
         if isinstance(filename, bytes):
-            filename = filename.decode('utf-8')
+            filename = filename.decode("utf-8")
         labels = database["labels"][i]
         compare(
             model=model,
@@ -139,12 +143,14 @@ if __name__ == "__main__":
                 config = json.load(f)
 
             # Load PyTorch model (update this based on your model loading logic)
-            checkpoint = torch.load(model_file, map_location='cpu')
+            checkpoint = torch.load(model_file, map_location="cpu")
             # Note: You'll need to instantiate the correct model architecture here
             # model = YourModelClass()
             # model.load_state_dict(checkpoint['model_state_dict'])
             # model.eval()
-            print(f"Warning: PyTorch model loading not fully implemented for {model_file}")
+            print(
+                f"Warning: PyTorch model loading not fully implemented for {model_file}"
+            )
 
     if fm:
         from generators.fm_generator import *
@@ -153,6 +159,6 @@ if __name__ == "__main__":
         model_file = "output/inversynth_full_e2e_best.h5"
         generator = InverSynthGenerator()
         # Load PyTorch model
-        checkpoint = torch.load(model_file, map_location='cpu')
+        checkpoint = torch.load(model_file, map_location="cpu")
         # Note: You'll need to instantiate the correct model architecture here
         print(f"Warning: PyTorch model loading not fully implemented for {model_file}")

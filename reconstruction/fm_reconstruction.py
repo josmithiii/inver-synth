@@ -3,13 +3,13 @@ from typing import Dict, Generator, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
+from playing.reconstruction.curves import *
+from playing.reconstruction.mod_oscillators import *
 from scipy.io import wavfile
 from synthplayer import params as synth_params
 from synthplayer.oscillators import *
 
 from models.app import top_k_mean_accuracy
-from playing.reconstruction.curves import *
-from playing.reconstruction.mod_oscillators import *
 
 
 class FMResynth:

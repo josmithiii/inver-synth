@@ -33,21 +33,21 @@ class SpectrogramCNN(nn.Module):
         sample_rate: int = 16000,
     ):
         super(SpectrogramCNN, self).__init__()
-        
+
         # STFT transform
         self.spectrogram = transforms.Spectrogram(
             n_fft=n_fft,
             hop_length=hop_length,
             power=2.0,  # Power spectrogram
         )
-        
+
         # Convert to dB scale
         self.amplitude_to_db = transforms.AmplitudeToDB()
-        
+
         # 2D Convolutional layers
         self.conv2d_layers = nn.ModuleList()
         in_channels = 1  # spectrogram has 1 channel
-        
+
         for arch_layer in arch_layers:
             self.conv2d_layers.append(
                 nn.Conv2d(
@@ -59,54 +59,58 @@ class SpectrogramCNN(nn.Module):
                 )
             )
             in_channels = arch_layer.filters
-        
+
         # Calculate the size after convolutions for the dense layer
-        self.fc_input_size = self._calculate_fc_input_size(input_size, n_fft, hop_length)
-        
+        self.fc_input_size = self._calculate_fc_input_size(
+            input_size, n_fft, hop_length
+        )
+
         # Fully connected layers
         self.fc1 = nn.Linear(self.fc_input_size, 512)
         self.fc2 = nn.Linear(512, n_outputs)
-        
-    def _calculate_fc_input_size(self, input_size: int, n_fft: int, hop_length: int) -> int:
+
+    def _calculate_fc_input_size(
+        self, input_size: int, n_fft: int, hop_length: int
+    ) -> int:
         # Create a dummy input to calculate the size after transformations
         x = torch.zeros(1, 1, input_size)  # batch_size=1, channels=1, length=input_size
-        
+
         # Apply spectrogram transform
         x = self.spectrogram(x.squeeze(1))  # Remove channel dim for spectrogram
         x = self.amplitude_to_db(x)
         x = x.unsqueeze(1)  # Add channel dim back
-        
+
         # Permute dimensions to match paper format (time, freq)
         x = x.permute(0, 1, 3, 2)  # (batch, channel, time, freq)
-        
+
         # Apply 2D convolutions
         for conv2d in self.conv2d_layers:
             x = F.relu(conv2d(x))
-        
+
         return x.view(1, -1).size(1)
-    
+
     def forward(self, x):
         # x shape: (batch_size, 1, audio_length)
-        
+
         # Apply STFT spectrogram
         x = self.spectrogram(x.squeeze(1))  # Remove channel dim for spectrogram
         x = self.amplitude_to_db(x)  # Convert to dB scale
         x = x.unsqueeze(1)  # Add channel dim back
-        
+
         # Permute dimensions to match paper format (time, freq)
         x = x.permute(0, 1, 3, 2)  # (batch, channel, time, freq)
-        
+
         # Apply 2D convolutions with ReLU activation
         for conv2d in self.conv2d_layers:
             x = F.relu(conv2d(x))
-        
+
         # Flatten
         x = x.view(x.size(0), -1)
-        
+
         # Fully connected layers
         x = F.relu(self.fc1(x))
         x = torch.sigmoid(self.fc2(x))  # sigmoid activation for final output
-        
+
         return x
 
 

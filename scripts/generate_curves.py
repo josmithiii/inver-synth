@@ -2,10 +2,12 @@
 """
 Generate training curves from CSV files
 """
-import matplotlib.pyplot as plt
-import pandas as pd
 import os
 import sys
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
 
 def generate_curves(csv_file='output/InverSynth_e2e.csv', output_file='training_curves.png'):
     """Generate training curves plot"""

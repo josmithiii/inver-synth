@@ -1,7 +1,7 @@
 import h5py
 import numpy as np
-from scipy.io import wavfile
 import torch
+from scipy.io import wavfile
 from torch.utils.data import Dataset
 
 
@@ -22,7 +22,9 @@ class SoundDataGenerator(Dataset):
         "Initialization"
         self.dim = (1, n_samps)
         self.batch_size = batch_size
-        self.shuffle_enabled = shuffle  # Renamed from self.shuffle to avoid naming conflict
+        self.shuffle_enabled = (
+            shuffle  # Renamed from self.shuffle to avoid naming conflict
+        )
         self.data_file = data_file
         self.n_channels = 1
         self.for_autoencoder = for_autoencoder
@@ -72,10 +74,10 @@ class SoundDataGenerator(Dataset):
         "Generate one sample of data"
         # Get the actual index from our shuffled list
         actual_index = self.indexes[index]
-        
+
         # Read labels
         y = self.database["labels"][actual_index]
-        
+
         # Load soundfile data
         data = self.read_file(actual_index)
         if data.shape[0] > self.n_samps:
@@ -85,11 +87,11 @@ class SoundDataGenerator(Dataset):
                 )
             )
         x = data[: self.n_samps]
-        
+
         # Convert to tensors and add channel dimension
         x = torch.FloatTensor(x).unsqueeze(0)  # Add channel dimension (1, n_samps)
         y = torch.FloatTensor(y)
-        
+
         if self.for_autoencoder:
             return y, y
         return x, y
