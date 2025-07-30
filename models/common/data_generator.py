@@ -22,7 +22,7 @@ class SoundDataGenerator(Dataset):
         "Initialization"
         self.dim = (1, n_samps)
         self.batch_size = batch_size
-        self.shuffle = shuffle
+        self.shuffle_enabled = shuffle  # Renamed from self.shuffle to avoid naming conflict
         self.data_file = data_file
         self.n_channels = 1
         self.for_autoencoder = for_autoencoder
@@ -97,7 +97,7 @@ class SoundDataGenerator(Dataset):
     def on_epoch_end(self):
         "Updates indexes after each epoch"
         self.indexes = np.arange(len(self.list_IDs))
-        if self.shuffle is True:
+        if self.shuffle_enabled is True:  # Use shuffle_enabled instead of shuffle
             np.random.shuffle(self.indexes)
 
     # Think this makes things worse - fills up memory
@@ -109,5 +109,5 @@ class SoundDataGenerator(Dataset):
 
     def shuffle(self):
         "Shuffle the dataset - call this at the start of each epoch"
-        if self.shuffle:
+        if self.shuffle_enabled:  # Use shuffle_enabled instead of shuffle
             np.random.shuffle(self.indexes)
