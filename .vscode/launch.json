@@ -16,7 +16,10 @@
             ],
             "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
+            }
         },
         {
             "name": "Train E2E Model",
@@ -27,7 +30,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
-                "TF_DEVICE": "auto"
+                "TF_DEVICE": "auto",
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
             }
         },
         {
@@ -42,7 +46,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
-                "TF_DEVICE": "auto"
+                "TF_DEVICE": "auto",
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
             }
         },
         {
@@ -57,7 +62,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
-                "TF_DEVICE": "auto"
+                "TF_DEVICE": "auto",
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
             }
         },
         {
@@ -72,7 +78,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
-                "TF_DEVICE": "auto"
+                "TF_DEVICE": "auto",
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
             }
         },
         {
@@ -87,7 +94,8 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "env": {
-                "TF_DEVICE": "auto"
+                "TF_DEVICE": "auto",
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
             }
         },
         {
@@ -97,7 +105,10 @@
             "program": "${workspaceFolder}/listen_results.py",
             "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
+            }
         },
         {
             "name": "Run Tests",
@@ -110,7 +121,10 @@
             ],
             "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
+            }
         },
         {
             "name": "Project Setup",
@@ -119,7 +133,10 @@
             "module": "tasks.start",
             "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "env": {
+                "KMP_DUPLICATE_LIB_OK": "TRUE"
+            }
         }
     ]
 }
