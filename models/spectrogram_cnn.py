@@ -49,13 +49,18 @@ class SpectrogramCNN(nn.Module):
         in_channels = 1  # spectrogram has 1 channel
 
         for arch_layer in arch_layers:
+            # Calculate padding to maintain compatibility with small inputs
+            kernel_h, kernel_w = arch_layer.window_size
+            padding_h = (kernel_h - 1) // 2
+            padding_w = (kernel_w - 1) // 2
+            
             self.conv2d_layers.append(
                 nn.Conv2d(
                     in_channels=in_channels,
                     out_channels=arch_layer.filters,
                     kernel_size=arch_layer.window_size,
                     stride=arch_layer.strides,
-                    padding=0,
+                    padding=(padding_h, padding_w),
                 )
             )
             in_channels = arch_layer.filters

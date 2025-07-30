@@ -3,7 +3,7 @@
 # with proper dependency management
 
 # Configuration
-PYTHON := poetry run python
+PYTHON := uv run python
 DATASET_SIZE := 150
 SAMPLE_RATE := 16384
 AUDIO_LENGTH := 1.0
@@ -101,7 +101,7 @@ model-c1: $(MODEL_C1)
 
 $(MODEL_C1): $(DATASET_FILE)
 	@echo "📊 Training C1 architecture (2 conv layers)..."
-	ARCHITECTURE=C1 $(PYTHON) -m models.spectrogram_cnn
+	ARCHITECTURE=C1 $(PYTHON) -m models.spectrogram_cnn  # ./models/spectrogram_cnn.py
 	@echo "✅ C1 model trained: $(MODEL_C1)"
 
 model-c3: $(MODEL_C3)
