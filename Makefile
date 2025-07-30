@@ -3,7 +3,7 @@
 # with proper dependency management
 
 # Configuration
-PYTHON := /Users/jos/miniforge3/envs/inver-synth/bin/python
+PYTHON := poetry run python
 DATASET_SIZE := 150
 SAMPLE_RATE := 16384
 AUDIO_LENGTH := 1.0
