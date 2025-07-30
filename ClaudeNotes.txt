@@ -1,0 +1,53 @@
+7/29/25 - PyTorch migration
+
+  Commit Summary:
+  - 6 files changed: Core model and training files completely transformed
+  - 443 insertions, 4260 deletions: Significant code modernization and simplification
+  - Complete architectural migration: From Keras/TensorFlow to PyTorch ecosystem
+  - Maintained compatibility: Same API, same architectures, same paper implementation
+
+  The commit is now ready and the working tree is clean. The project
+  has been successfully transformed to use PyTorch while preserving
+  all the original InverSynth functionality! 🚀
+
+-----------------------------------------------------------------------------------------
+
+  ✅ Successfully debugged and fixed make evaluation
+
+  Key Issues Fixed:
+
+  1. TensorFlow/Keras → PyTorch Migration:
+    - Updated listen_results.py to load PyTorch models (.pth) instead of Keras models (.h5)
+    - Fixed models/comparison.py to use PyTorch model inference
+    - Updated reconstruction/fm_reconstruction.py for PyTorch compatibility
+  2. Import Issues:
+    - Fixed generator imports (InverSynthGenerator, VSTGenerator)
+    - Made VSTGenerator import conditional to handle missing dependencies
+  3. Model Loading:
+    - Correctly implemented PyTorch checkpoint loading (direct state_dict, not wrapped)
+    - Added architecture detection from filenames (e.g., "C6", "e2e")
+    - Fixed byte string handling for HDF5 filenames
+  4. Training Curves Generation:
+    - Created robust scripts/generate_curves.py to handle empty CSV files
+    - Updated Makefile to use the new script instead of inline Python
+  5. File Format Updates:
+    - Updated Makefile to expect .pth files instead of .h5 files
+    - Updated clean targets to handle both formats
+
+  Current Status:
+
+  The make evaluation command now:
+  - ✅ Loads PyTorch models successfully
+  - ✅ Creates audio comparisons (original vs reconstructed vs duplicate)
+  - ✅ Generates spectrograms for visual comparison
+  - ✅ Creates training curves (with placeholder when no data available)
+  - ✅ Runs all evaluation components without errors
+
+  The evaluation pipeline is fully functional with PyTorch models and produces:
+  - Audio files in comparison_results/InverSynth/
+  - Spectrogram comparisons as .png files
+  - Training curves visualization
+  - Model performance metrics during inference
+  
+-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
