@@ -10,32 +10,31 @@ This is a Python implementation of the InverSynth method from the paper "Barkan,
 
 ### Environment Setup
 ```bash
-poetry shell
-poetry install
+uv sync --extra dev
 ```
 
 ### Main Operations
-- `poetry run task start` - Initialize project (creates directories and .env file)
-- `poetry run task generate` - Generate training dataset with default parameters
-- `poetry run task test` - Run test suite
-- `poetry run task clean` - Run linting, formatting, and type checking
+- `uv run task start` - Initialize project (creates directories and .env file)
+- `uv run task generate` - Generate training dataset with default parameters
+- `uv run task test` - Run test suite
+- `uv run task clean` - Run linting, formatting, and type checking
 
 ### Manual Dataset Generation
 ```bash
-python -m generators.fm_generator [options]
+uv run python -m generators.fm_generator [options]
 ```
 
 ### Model Training
 ```bash
-python -m models.e2e_cnn        # End-to-end CNN model
-python -m models.spectrogram_cnn # STFT spectrogram CNN model
+uv run python -m models.e2e_cnn        # End-to-end CNN model
+uv run python -m models.spectrogram_cnn # STFT spectrogram CNN model
 ```
 
 ### Development Tools
-- Linting: `flake8 models/ generators/ tests/`
-- Formatting: `black models/ generators/ tests/`
-- Import sorting: `isort .`
-- Type checking: `mypy` (configured in mypy.ini)
+- Linting: `uv run flake8 models/ generators/ tests/`
+- Formatting: `uv run black models/ generators/ tests/`
+- Import sorting: `uv run isort .`
+- Type checking: `uv run mypy` (configured in mypy.ini)
 
 ## Architecture
 
@@ -73,7 +72,7 @@ python -m models.spectrogram_cnn # STFT spectrogram CNN model
 
 ### Configuration
 - Environment variables in `.env` for model/training configuration
-- Poetry-based dependency management with locked versions
+- uv-based dependency management with locked versions
 - Taskipy for common development tasks
 - Plugin configurations in `plugin_config/` for VST-based generation
 

@@ -1,7 +1,0 @@
-# Core dependencies - conda will handle most scientific packages
-python-dotenv
-synthplayer
-kapre
-librosa
-h5py
-soundfile

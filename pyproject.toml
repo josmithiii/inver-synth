@@ -1,29 +1,34 @@
-[tool.poetry]
+[project]
 name = "inver-synth"
 version = "0.1.0"
 description = "A Python implementation of the InverSynth method (Barkan, Tsiris, Koenigstein, Katz)"
-authors = ["crodriguez1a <https://github.com/crodriguez1a>", "mo-seph <https://github.com/mo-seph>"]
+authors = [
+    {name = "crodriguez1a", email = "crodriguez1a@github.com"},
+    {name = "mo-seph", email = "mo-seph@github.com"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "taskipy>=1.2.1",
+    "synthplayer>=2.4",
+    "python-dotenv>=0.14.0",
+    "pandas>=1.3.0",
+    "librosa>=0.8.0",
+    "numba>=0.56.0",
+    "torch>=1.11.0",
+    "torchaudio>=0.11.0",
+    "matplotlib>=3.2.2",
+    "h5py>=3.0.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-taskipy = "^1.2.1"
-synthplayer = "^2.4"
-python-dotenv = "^0.14.0"
-pandas = "^1.3.0"
-librosa = "^0.8.0"
-numba = "^0.56.0"
-torch = "^1.11.0"
-torchaudio = "^0.11.0"
-matplotlib = "^3.2.2"
-h5py = "^3.0.0"
-
-[tool.poetry.group.dev.dependencies]
-black = "^22.0.0"
-isort = "^5.0.9"
-mypy = "^1.0.0"
-flake8 = "^5.0.0"
-autoflake = "^1.7.0"
-pytest = "^7.0.0"
+[project.optional-dependencies]
+dev = [
+    "black>=22.0.0",
+    "isort>=5.0.9",
+    "mypy>=1.0.0",
+    "flake8>=5.0.0",
+    "autoflake>=1.7.0",
+    "pytest>=7.0.0",
+]
 
 [tool.taskipy.tasks]
 test = "python -m pytest"
@@ -38,6 +43,9 @@ force_grid_wrap=0
 use_parentheses="True"
 line_length=120
 
+[tool.hatch.build.targets.wheel]
+packages = ["models", "generators", "tasks"]
+
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
