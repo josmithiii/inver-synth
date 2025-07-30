@@ -5,11 +5,18 @@ import re
 
 import h5py
 import numpy as np
+import torch
 from scipy.io import wavfile
 from scipy.io.wavfile import write as write_wav
-from tensorflow import keras
 
-from generators.generator import InverSynthGenerator, SoundGenerator, VSTGenerator
+from generators.generator import SoundGenerator
+from generators.fm_generator import InverSynthGenerator
+
+# Conditional import of VSTGenerator (might not be available due to dependencies)
+try:
+    from generators.vst_generator import VSTGenerator
+except ImportError:
+    VSTGenerator = None
 from generators.parameters import ParameterSet
 
 """
@@ -19,7 +26,7 @@ then generates a file with the predicted parameters
 
 
 def compare(
-    model: keras.Model,
+    model: torch.nn.Module,
     generator: SoundGenerator,
     parameters: ParameterSet,
     orig_file: str,
@@ -47,10 +54,12 @@ def compare(
     generator.generate(orig, regen_file, length, sample_rate, extra)
 
     # Run the wavefile into the model for prediction
-    X = [data]
-    Xd = np.expand_dims(np.vstack(X), axis=2)
-    # Get encoded parameters out of model
-    result = model.predict(Xd)[0]
+    model.eval()
+    with torch.no_grad():
+        # Convert to tensor and add batch dimension
+        X = torch.tensor(data, dtype=torch.float32).unsqueeze(0).unsqueeze(0)  # Shape: (1, 1, sequence_length)
+        # Get encoded parameters out of model
+        result = model(X).squeeze(0).cpu().numpy()  # Remove batch dimension and convert to numpy
 
     # Decode prediction, and reconstruct output
     predicted = parameters.encoding_to_settings(result)
@@ -58,7 +67,7 @@ def compare(
 
 
 def run_comparison(
-    model: keras.Model,
+    model: torch.nn.Module,
     generator: SoundGenerator,
     run_name: str,
     indices=None,
@@ -91,6 +100,9 @@ def run_comparison(
     for i in indices:
         print("Looking at index: {}".format(i))
         filename = database["files"][i]
+        # Handle bytes vs string for filename
+        if isinstance(filename, bytes):
+            filename = filename.decode('utf-8')
         labels = database["labels"][i]
         compare(
             model=model,
@@ -115,24 +127,24 @@ if __name__ == "__main__":
     fm = True
 
     if lokomotiv:
-        from generators.vst_generator import *
+        if VSTGenerator is None:
+            print("VSTGenerator not available - skipping lokomotiv test")
+        else:
+            run_name = "lokomotiv_full"
+            model_file = "output/lokomotiv_full_e2e_best.h5"
+            plugin = "/Library/Audio/Plug-Ins/VST/Lokomotiv.vst"
+            config_file = "plugin_config/lokomotiv.json"
+            generator = VSTGenerator(vst=plugin, sample_rate=sample_rate)
+            with open(config_file, "r") as f:
+                config = json.load(f)
 
-        run_name = "lokomotiv_full"
-        model_file = "output/lokomotiv_full_e2e_best.h5"
-        plugin = "/Library/Audio/Plug-Ins/VST/Lokomotiv.vst"
-        config_file = "plugin_config/lokomotiv.json"
-        generator = VSTGenerator(vst=plugin, sample_rate=sample_rate)
-        with open(config_file, "r") as f:
-            config = json.load(f)
-
-        model = keras.models.load_model(model_file)
-        run_comparison(
-            model,
-            generator,
-            run_name,
-            num_samples=100,
-            extra={"note_length": note_length, "config": config},
-        )
+            # Load PyTorch model (update this based on your model loading logic)
+            checkpoint = torch.load(model_file, map_location='cpu')
+            # Note: You'll need to instantiate the correct model architecture here
+            # model = YourModelClass()
+            # model.load_state_dict(checkpoint['model_state_dict'])
+            # model.eval()
+            print(f"Warning: PyTorch model loading not fully implemented for {model_file}")
 
     if fm:
         from generators.fm_generator import *
@@ -140,5 +152,7 @@ if __name__ == "__main__":
         run_name = "inversynth_full"
         model_file = "output/inversynth_full_e2e_best.h5"
         generator = InverSynthGenerator()
-        model = keras.models.load_model(model_file)
-        run_comparison(model, generator, run_name, num_samples=100)
+        # Load PyTorch model
+        checkpoint = torch.load(model_file, map_location='cpu')
+        # Note: You'll need to instantiate the correct model architecture here
+        print(f"Warning: PyTorch model loading not fully implemented for {model_file}")

@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import librosa
 import librosa.display
-from tensorflow import keras
+import torch
 from models.app import top_k_mean_accuracy
 from models.comparison import run_comparison
 from generators.fm_generator import InverSynthGenerator
@@ -52,11 +52,72 @@ def create_comparison_samples(model_file, num_samples=5):
     
     print(f"🎵 Creating audio comparisons with model: {model_file}")
     
-    # Load model
-    model = keras.models.load_model(
-        model_file, 
-        custom_objects={"top_k_mean_accuracy": top_k_mean_accuracy}
-    )
+    # Load model - try PyTorch first, fall back to Keras
+    if model_file.endswith('.pth'):
+        # PyTorch model
+        checkpoint = torch.load(model_file, map_location='cpu')
+        
+        # Determine model architecture from file name
+        if 'e2e' in model_file:
+            from models.e2e_cnn import E2EModel
+            from models.common.architectures import cE2E_1d_layers, cE2E_2d_layers
+            model = E2EModel(
+                n_outputs=256,
+                c1d_layers=cE2E_1d_layers,
+                c2d_layers=cE2E_2d_layers,
+                input_size=16384
+            )
+        else:
+            # Spectrogram model - extract architecture from filename
+            from models.spectrogram_cnn import SpectrogramModel
+            from models.common.architectures import get_architecture_layers
+            
+            # Extract architecture from filename (e.g., "InverSynth_C6.pth" -> "C6")
+            arch_name = 'C1'  # Default
+            for arch in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C6XL']:
+                if arch in model_file:
+                    arch_name = arch
+                    break
+            
+            layers = get_architecture_layers(arch_name)
+            model = SpectrogramModel(n_outputs=256, layers=layers)
+        
+        model.load_state_dict(checkpoint)
+        model.eval()
+    else:
+        # Legacy Keras model - convert filename to PyTorch equivalent
+        pth_file = model_file.replace('.h5', '.pth')
+        if os.path.exists(pth_file):
+            # Use PyTorch version if available
+            checkpoint = torch.load(pth_file, map_location='cpu')
+            
+            if 'e2e' in pth_file:
+                from models.e2e_cnn import E2EModel
+                from models.common.architectures import cE2E_1d_layers, cE2E_2d_layers
+                model = E2EModel(
+                    n_outputs=256,
+                    c1d_layers=cE2E_1d_layers,
+                    c2d_layers=cE2E_2d_layers,
+                    input_size=16384
+                )
+            else:
+                from models.spectrogram_cnn import SpectrogramModel
+                from models.common.architectures import get_architecture_layers
+                
+                # Extract architecture from filename
+                arch_name = 'C1'  # Default
+                for arch in ['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C6XL']:
+                    if arch in pth_file:
+                        arch_name = arch
+                        break
+                
+                layers = get_architecture_layers(arch_name)
+                model = SpectrogramModel(n_outputs=256, layers=layers)
+                
+            model.load_state_dict(checkpoint)
+            model.eval()
+        else:
+            raise FileNotFoundError(f"Neither PyTorch ({pth_file}) nor Keras ({model_file}) model found")
     
     # Set up FM generator
     generator = InverSynthGenerator()
@@ -104,7 +165,14 @@ def analyze_training_metrics():
     csv_file = "output/InverSynth_e2e.csv"
     if os.path.exists(csv_file):
         print("📈 Training metrics analysis:")
-        df = pd.read_csv(csv_file)
+        try:
+            df = pd.read_csv(csv_file)
+            if df.empty:
+                print("   No training metrics found (CSV file is empty)")
+                return
+        except pd.errors.EmptyDataError:
+            print("   No training metrics found (CSV file is empty)")
+            return
         
         # Print summary statistics
         print(f"   Training epochs: {len(df)}")
@@ -148,13 +216,39 @@ if __name__ == "__main__":
     print("🎼 InverSynth Model Results Analysis")
     print("="*50)
     
-    # Check available models
+    # Check available models - prefer PyTorch over Keras
     models = []
-    if os.path.exists("output/InverSynth_e2e.h5"):
-        models.append("output/InverSynth_e2e.h5")
+    
+    # Check for PyTorch models first
+    pytorch_models = [
+        "output/InverSynth_e2e.pth",
+        "output/InverSynth_C1.pth", 
+        "output/InverSynth_C3.pth",
+        "output/InverSynth_C6.pth",
+        "output/InverSynth_C6XL.pth"
+    ]
+    
+    for model_file in pytorch_models:
+        if os.path.exists(model_file):
+            models.append(model_file)
+    
+    # If no PyTorch models, check for Keras models
+    if not models:
+        keras_models = [
+            "output/InverSynth_e2e.h5",
+            "output/InverSynth_C1.h5",
+            "output/InverSynth_C3.h5", 
+            "output/InverSynth_C6.h5",
+            "output/InverSynth_C6XL.h5"
+        ]
+        
+        for model_file in keras_models:
+            if os.path.exists(model_file):
+                models.append(model_file)
     
     if not models:
         print("❌ No trained models found in output/ directory")
+        print("Expected files: output/InverSynth_*.pth or output/InverSynth_*.h5")
         exit(1)
     
     print(f"📁 Found models: {models}")

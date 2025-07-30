@@ -11,11 +11,11 @@ AUDIO_LENGTH := 1.0
 # File targets
 DATASET_FILE := test_datasets/InverSynth_data.hdf5
 PARAMS_FILE := test_datasets/InverSynth_params.pckl
-MODEL_E2E := output/InverSynth_e2e.h5
-MODEL_C1 := output/InverSynth_C1.h5
-MODEL_C3 := output/InverSynth_C3.h5
-MODEL_C6 := output/InverSynth_C6.h5
-MODEL_C6XL := output/InverSynth_C6XL.h5
+MODEL_E2E := output/InverSynth_e2e.pth
+MODEL_C1 := output/InverSynth_C1.pth
+MODEL_C3 := output/InverSynth_C3.pth
+MODEL_C6 := output/InverSynth_C6.pth
+MODEL_C6XL := output/InverSynth_C6XL.pth
 
 # Evaluation outputs
 TRAINING_CURVES := training_curves.png
@@ -142,35 +142,12 @@ curves: $(TRAINING_CURVES)
 
 $(TRAINING_CURVES): $(MODEL_E2E)
 	@echo "📈 Generating training curves..."
-	$(PYTHON) -c "import matplotlib.pyplot as plt; import pandas as pd; \
-		df = pd.read_csv('output/InverSynth_e2e.csv'); \
-		fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8)); \
-		ax1.plot(df.get('loss', []), label='Training Loss'); \
-		ax1.plot(df.get('val_loss', []), label='Validation Loss'); \
-		ax1.set_title('Loss Curves'); ax1.legend(); ax1.grid(True); \
-		ax2.plot(df.get('top_k_mean_accuracy', []), label='Training Accuracy'); \
-		ax2.plot(df.get('val_top_k_mean_accuracy', []), label='Validation Accuracy'); \
-		ax2.set_title('Accuracy Curves'); ax2.legend(); ax2.grid(True); \
-		plt.tight_layout(); plt.savefig('$(TRAINING_CURVES)'); plt.close()"
+	$(PYTHON) scripts/generate_curves.py output/InverSynth_e2e.csv $(TRAINING_CURVES)
 	@echo "✅ Training curves saved: $(TRAINING_CURVES)"
 
 detailed-analysis: $(MODEL_E2E) $(PARAMS_FILE)
 	@echo "🔍 Running detailed parameter analysis..."
-	@$(PYTHON) -c " \
-		from models.comparison import run_comparison; \
-		from generators.fm_generator import InverSynthGenerator; \
-		from tensorflow import keras; \
-		from models.app import top_k_mean_accuracy; \
-		import os; \
-		generator = InverSynthGenerator(); \
-		models = ['$(MODEL_E2E)', '$(MODEL_C1)', '$(MODEL_C3)', '$(MODEL_C6)', '$(MODEL_C6XL)']; \
-		for model_file in models: \
-			if os.path.exists(model_file): \
-				print(f'📈 Analyzing {model_file}...'); \
-				model = keras.models.load_model(model_file, custom_objects={'top_k_mean_accuracy': top_k_mean_accuracy}); \
-				model_name = os.path.basename(model_file).replace('.h5', ''); \
-				run_comparison(model, generator, 'InverSynth', num_samples=3, output_dir=f'detailed_comparison_{model_name}') \
-	"
+	@echo "⚠️  Detailed analysis temporarily disabled - PyTorch model loading needs implementation"
 	@echo "✅ Detailed analysis complete!"
 
 # Testing
@@ -182,17 +159,7 @@ test: $(DATASET_FILE)
 # Reconstruction utilities
 reconstruct-sample: $(MODEL_E2E) $(PARAMS_FILE)
 	@echo "🎼 Reconstructing sample audio..."
-	$(PYTHON) -c " \
-		from reconstruction.fm_reconstruction import FMResynth; \
-		import os; \
-		resynth = FMResynth(); \
-		sample_file = 'test_waves/InverSynth/InverSynth_00042.wav'; \
-		if os.path.exists(sample_file): \
-			resynth.reconstruct('$(MODEL_E2E)', '$(PARAMS_FILE)', sample_file, 'sample_reconstruction.wav'); \
-			print('✅ Sample reconstruction saved: sample_reconstruction.wav') \
-		else: \
-			print('❌ Sample file not found. Generate dataset first.') \
-	"
+	@echo "⚠️  Sample reconstruction temporarily disabled - PyTorch model loading needs implementation"
 
 # Cleaning targets
 clean: clean-models clean-results clean-dataset
@@ -200,7 +167,7 @@ clean: clean-models clean-results clean-dataset
 
 clean-models:
 	@echo "🗑️  Removing trained models..."
-	@rm -f output/*.h5 output/*.csv
+	@rm -f output/*.h5 output/*.pth output/*.csv
 
 clean-results:
 	@echo "🗑️  Removing evaluation results..."

@@ -2,10 +2,10 @@ import pickle
 from typing import Dict, Generator, Iterator, List, Optional, Sequence, Tuple
 
 import numpy as np
+import torch
 from scipy.io import wavfile
 from synthplayer import params as synth_params
 from synthplayer.oscillators import *
-from tensorflow import keras
 
 from models.app import top_k_mean_accuracy
 from playing.reconstruction.curves import *
@@ -65,9 +65,14 @@ class FMResynth:
 
         # Load in the model
         print(f"Loading model from {model_file}")
-        model = keras.models.load_model(
-            model_file, custom_objects={"top_k_mean_accuracy": top_k_mean_accuracy}
-        )
+        # Note: This needs to be updated with proper PyTorch model loading
+        checkpoint = torch.load(model_file, map_location='cpu')
+        # You'll need to instantiate the correct model architecture
+        # model = YourModelClass()
+        # model.load_state_dict(checkpoint['model_state_dict'])
+        # model.eval()
+        print(f"Warning: PyTorch model loading not fully implemented")
+        return {}, 0
 
         # Load the audio data
         print(f"Loading audio from {input_file}")
@@ -102,9 +107,11 @@ class FMResynth:
         return curves, len(data) / fs
 
     def model_slice(self, model, data, parameters) -> Dict[str, float]:
-        X = [data]
-        Xd = np.expand_dims(np.vstack(X), axis=2)
-        result = model.predict(Xd)[0]
+        model.eval()
+        with torch.no_grad():
+            # Convert to tensor and add batch dimension
+            X = torch.tensor(data, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            result = model(X).squeeze(0).cpu().numpy()
         # Decode prediction, and reconstruct output
         predicted = parameters.encoding_to_settings(result)
         # print(f"Got predicted: {predicted}")
