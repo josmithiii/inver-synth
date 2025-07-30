@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from models.app import train_model
 from models.e2e_cnn import get_model as get_e2e
@@ -14,8 +15,8 @@ def standard_run_parser() -> argparse.ArgumentParser:
         dest="model_name",
         type=str,
         choices=["C1", "C2", "C3", "C4", "C5", "C6", "C6XL", "e2e"],
-        default="e2e",
-        help="Model architecture to run",
+        default=os.environ.get("ARCHITECTURE", "e2e"),
+        help="Model architecture to run (can also be set via ARCHITECTURE environment variable)",
     )
     parser.add_argument(
         "--dataset_name",
