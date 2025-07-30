@@ -1,0 +1,125 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Dataset Generation",
+            "type": "python",
+            "request": "launch",
+            "module": "generators.fm_generator",
+            "args": [
+                "--num_examples", "150",
+                "--length", "1.0",
+                "--sample_rate", "16384",
+                "--name", "InverSynth",
+                "--dataset_directory", "test_datasets",
+                "--wavefile_directory", "test_waves"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Train E2E Model",
+            "type": "python",
+            "request": "launch",
+            "module": "models.e2e_cnn",
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "TF_DEVICE": "auto"
+            }
+        },
+        {
+            "name": "Train C1 Model",
+            "type": "python",
+            "request": "launch",
+            "module": "models.spectrogram_cnn",
+            "args": [
+                "--model", "C1"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "TF_DEVICE": "auto"
+            }
+        },
+        {
+            "name": "Train C3 Model",
+            "type": "python",
+            "request": "launch",
+            "module": "models.spectrogram_cnn",
+            "args": [
+                "--model", "C3"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "TF_DEVICE": "auto"
+            }
+        },
+        {
+            "name": "Train C6 Model",
+            "type": "python",
+            "request": "launch",
+            "module": "models.spectrogram_cnn",
+            "args": [
+                "--model", "C6"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "TF_DEVICE": "auto"
+            }
+        },
+        {
+            "name": "Train C6XL Model",
+            "type": "python",
+            "request": "launch",
+            "module": "models.spectrogram_cnn",
+            "args": [
+                "--model", "C6XL"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "env": {
+                "TF_DEVICE": "auto"
+            }
+        },
+        {
+            "name": "Generate Audio Comparisons",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/listen_results.py",
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Run Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "args": [
+                "tests/",
+                "-v"
+            ],
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Project Setup",
+            "type": "python",
+            "request": "launch",
+            "module": "tasks.start",
+            "python": "/Users/jos/miniforge3/envs/inver-synth/bin/python",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
